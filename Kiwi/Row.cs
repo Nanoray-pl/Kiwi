@@ -31,23 +31,13 @@ internal sealed class Row
         => this.Constant += value;
 
     internal void Insert(Symbol symbol, double coefficient = 1)
-    {
-        if (!Cells.TryGetValue(symbol, out double existingCoefficient))
-            coefficient += existingCoefficient;
-        SetCell(symbol, coefficient);
-    }
+        => SetCell(symbol, Cells.GetValueOrDefault(symbol) + coefficient);
 
     internal void Insert(Row other, double coefficient = 1)
     {
         this.Constant += other.Constant * coefficient;
-
-        foreach (var (symbol, otherSymbolCoefficient) in other.Cells)
-        {
-            if (!this.Cells.TryGetValue(symbol, out double thisSymbolCoefficient))
-                thisSymbolCoefficient = 0;
-            double newSymbolCoefficient = thisSymbolCoefficient + otherSymbolCoefficient * coefficient;
-            SetCell(symbol, newSymbolCoefficient);
-        }
+        foreach (var (symbol, symbolCoefficient) in other.Cells)
+            SetCell(symbol, this.Cells.GetValueOrDefault(symbol) + symbolCoefficient * coefficient);
     }
 
     internal void Remove(Symbol symbol)
@@ -80,7 +70,7 @@ internal sealed class Row
     }
 
     internal double GetCoefficientForSymbol(Symbol symbol)
-        => this.Cells.TryGetValue(symbol, out double coefficient) ? coefficient : 0;
+        => this.Cells.GetValueOrDefault(symbol);
 
     internal void Substitute(Symbol symbol, Row row)
     {

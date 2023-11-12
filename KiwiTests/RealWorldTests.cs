@@ -14,8 +14,6 @@ public sealed class RealWorldTests
     private const string Bottom = "bottom";
     private const string Height = "height";
     private const string Width = "width";
-    private const string CenterX = "centerX";
-    private const string CenterY = "centerY";
 
     private static readonly string[] Constraints = new[]
     {
@@ -105,7 +103,16 @@ public sealed class RealWorldTests
         "more.left == container.leftPadding",
         "more.right == container.rightPadding",
 
-        "container.height == more.bottom + container.buttonPadding"
+        "container.height == more.bottom + container.buttonPadding",
+
+        "container.width == 300",
+        "title0.intrinsicHeight == 100",
+        "title1.intrinsicHeight == 110",
+        "title2.intrinsicHeight == 120",
+        "title3.intrinsicHeight == 130",
+        "title4.intrinsicHeight == 140",
+        "title5.intrinsicHeight == 150",
+        "more.intrinsicHeight == 160"
     };
 
     private sealed class TestVariableResolver : ConstraintParser.ICassowaryVariableResolver
@@ -176,15 +183,6 @@ public sealed class RealWorldTests
             var constraint = ConstraintParser.ParseConstraint(constraintString, variableResolver);
             solver.AddConstraint(constraint);
         }
-
-        solver.AddConstraint(ConstraintParser.ParseConstraint("container.width == 300", variableResolver));
-        solver.AddConstraint(ConstraintParser.ParseConstraint("title0.intrinsicHeight == 100", variableResolver));
-        solver.AddConstraint(ConstraintParser.ParseConstraint("title1.intrinsicHeight == 110", variableResolver));
-        solver.AddConstraint(ConstraintParser.ParseConstraint("title2.intrinsicHeight == 120", variableResolver));
-        solver.AddConstraint(ConstraintParser.ParseConstraint("title3.intrinsicHeight == 130", variableResolver));
-        solver.AddConstraint(ConstraintParser.ParseConstraint("title4.intrinsicHeight == 140", variableResolver));
-        solver.AddConstraint(ConstraintParser.ParseConstraint("title5.intrinsicHeight == 150", variableResolver));
-        solver.AddConstraint(ConstraintParser.ParseConstraint("more.intrinsicHeight == 160", variableResolver));
 
         solver.UpdateVariables();
 

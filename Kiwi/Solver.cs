@@ -88,11 +88,7 @@ public sealed class Solver
         this.Constraints.Remove(constraint);
         RemoveConstraintEffects(constraint, tag);
 
-        if (this.Rows.ContainsKey(tag.Marker))
-        {
-            this.Rows.Remove(tag.Marker);
-        }
-        else
+        if (!this.Rows.Remove(tag.Marker))
         {
             var row = GetMarkerLeavingRow(tag.Marker) ?? throw new InternalSolverException();
             var leaving = this.Rows.FirstOrNull(kvp => kvp.Value == row)?.Key ?? throw new InternalSolverException();
@@ -480,7 +476,7 @@ public sealed class Solver
         => row.Cells.Keys.All(s => s.Type == SymbolType.Dummy);
 
     private VariableInfo? GetInfo(IVariable variable)
-        => this.Variables.TryGetValue(variable, out var info) ? info : null;
+        => this.Variables.GetValueOrNull(variable);
 
     private VariableInfo ObtainInfo(IVariable variable)
     {

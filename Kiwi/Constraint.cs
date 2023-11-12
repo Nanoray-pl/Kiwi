@@ -82,11 +82,7 @@ public readonly struct Constraint : IEquatable<Constraint>
     {
         Dictionary<IVariable, double> variables = new();
         foreach (var term in expr.Terms)
-        {
-            if (!variables.TryGetValue(term.Variable, out double value))
-                value = 0;
-            variables[term.Variable] = value + term.Coefficient;
-        }
+            variables[term.Variable] = variables.GetValueOrDefault(term.Variable) + term.Coefficient;
 
         List<Term> reducedTerms = new(variables.Count);
         foreach (var (variable, value) in variables)
