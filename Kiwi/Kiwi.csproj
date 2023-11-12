@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Nanoray.Kiwi</RootNamespace>
+    <TargetFrameworks>net5.0;net6.0;net7.0</TargetFrameworks>
+    <LangVersion>11.0</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Company>Nanoray</Company>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/Nanoray-pl/Kiwi</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Nanoray-pl/Kiwi</PackageProjectUrl>
+    <PackageTags>ui</PackageTags>
+    <Authors>Shockah</Authors>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Version>1.0.0</Version>
+    <!--<PackageReadmeFile>README.md</PackageReadmeFile>-->
+    <Description>A C# port of the Kiwi C++ implementation of the Cassowary constraint solving algorithm.</Description>
+    <Copyright>Nanoray</Copyright>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="..\.editorconfig" Link=".editorconfig" />
+    <!--<None Include="..\docs\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>-->
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+</Project>
