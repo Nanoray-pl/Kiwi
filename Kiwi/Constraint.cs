@@ -1,12 +1,13 @@
+using System;
 using System.Collections.Generic;
 
 namespace Nanoray.Kiwi;
 
-public sealed class Constraint
+public readonly struct Constraint : IEquatable<Constraint>
 {
-    public Expression Expression { get; set; }
-    public RelationalOperator Operator { get; set; }
-    public double Strength { get; set; }
+    public Expression Expression { get; init; }
+    public RelationalOperator Operator { get; init; }
+    public double Strength { get; init; }
 
     public Constraint(Expression expression, RelationalOperator @operator, double? strength = null)
     {
@@ -17,9 +18,20 @@ public sealed class Constraint
 
     public Constraint(Constraint other, double? strength = null) : this(other.Expression, other.Operator, strength) { }
 
-    /// <inheritdoc/>
-    public override string ToString()
-        => $"{{Expression {Expression}, Operator {Operator}, Strength {Strength}}}";
+    public override readonly bool Equals(object? obj)
+        => obj is Constraint constraint && Equals(constraint);
+
+    public readonly bool Equals(Constraint other)
+        => Expression == other.Expression && Operator == other.Operator && Strength == other.Strength;
+
+    public static bool operator ==(Constraint left, Constraint right)
+        => left.Equals(right);
+
+    public static bool operator !=(Constraint left, Constraint right)
+        => !(left == right);
+
+    public override readonly int GetHashCode()
+        => (Expression, Operator, Strength).GetHashCode();
 
     public static Constraint Make(Expression lhs, RelationalOperator @operator, Expression rhs, double? strength = null)
         => new(lhs - rhs, @operator, strength);
