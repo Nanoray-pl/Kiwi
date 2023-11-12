@@ -2,24 +2,15 @@ using System.Collections.Generic;
 
 namespace Nanoray.Kiwi;
 
-public sealed class Term
+public record struct Term(
+    IVariable Variable,
+    double Coefficient = 1
+)
 {
-    public Variable Variable { get; set; }
-    public double Coefficient { get; set; }
-
-    public double Value
+    public readonly double Value
         => Variable.Value * Coefficient;
 
-    public Term(Variable variable, double coefficient = 1)
-    {
-        this.Variable = variable;
-        this.Coefficient = coefficient;
-    }
-
-    /// <inheritdoc/>
-    public override string ToString()
-        => $"{{Term: {Variable} x {Coefficient}}}";
-
+    #region Term-Term operators
     public static Term operator -(Term term)
         => new(term.Variable, -term.Coefficient);
 
@@ -29,26 +20,30 @@ public sealed class Term
         return new(terms);
     }
 
-    public static Expression operator +(Term lhs, Variable rhs)
+    public static Expression operator -(Term lhs, Term rhs)
+        => lhs + -rhs;
+    #endregion
+
+    #region Term-Variable operators
+    public static Expression operator +(Term lhs, IVariable rhs)
         => lhs + new Term(rhs);
 
-    public static Expression operator +(Variable lhs, Term rhs)
+    public static Expression operator +(IVariable lhs, Term rhs)
         => rhs + lhs;
 
+    public static Expression operator -(Term lhs, IVariable rhs)
+        => lhs + rhs.Negate();
+
+    public static Expression operator -(IVariable lhs, Term rhs)
+        => lhs + -rhs;
+    #endregion
+
+    #region Term-double operators
     public static Expression operator +(Term lhs, double rhs)
         => new(new List<Term> { lhs }, rhs);
 
     public static Expression operator +(double lhs, Term rhs)
         => rhs + lhs;
-
-    public static Expression operator -(Term lhs, Term rhs)
-        => lhs + -rhs;
-
-    public static Expression operator -(Term lhs, Variable rhs)
-        => lhs + -rhs;
-
-    public static Expression operator -(Variable lhs, Term rhs)
-        => lhs + -rhs;
 
     public static Expression operator -(Term lhs, double rhs)
         => new(new List<Term> { lhs }, -rhs);
@@ -64,4 +59,5 @@ public sealed class Term
 
     public static Term operator /(Term term, double denominator)
         => new(term.Variable, term.Coefficient / denominator);
+    #endregion
 }

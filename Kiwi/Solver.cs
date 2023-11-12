@@ -26,10 +26,23 @@ public sealed class Solver
         }
     };
 
+    private sealed class VariableInfo
+    {
+        public IVariable Variable { get; private set; }
+        public Symbol Symbol { get; private set; }
+        public EditInfo? Edit { get; set; }
+
+        public VariableInfo(IVariable variable, Symbol? symbol = null, EditInfo? edit = null)
+        {
+            this.Variable = variable;
+            this.Symbol = symbol ?? new(SymbolType.External);
+            this.Edit = edit;
+        }
+    }
+
     private Dictionary<Constraint, Tag> Constraints { get; set; } = new();
     private Dictionary<Symbol, Row> Rows { get; set; } = new();
-    private Dictionary<Variable, Symbol> Variables { get; set; } = new();
-    private Dictionary<Variable, EditInfo> Edits { get; set; } = new();
+    private Dictionary<IVariable, VariableInfo> Variables { get; set; } = new();
     private List<Symbol> InfeasibleRows { get; set; } = new();
     private Row Objective { get; set; } = new();
     private Row? Artificial { get; set; }
@@ -160,9 +173,10 @@ public sealed class Solver
     public bool HasConstraint(Constraint constraint)
         => this.Constraints.ContainsKey(constraint);
 
-    public void AddEditVariable(Variable variable, double strength)
+    public void AddEditVariable(IVariable variable, double strength)
     {
-        if (this.Edits.ContainsKey(variable))
+        var variableInfo = ObtainInfo(variable);
+        if (variableInfo.Edit is not null)
             throw new DuplicateEditVariableException();
 
         strength = Strength.Clip(strength);
@@ -175,49 +189,51 @@ public sealed class Solver
         AddConstraint(constraint);
         if (!this.Constraints.TryGetValue(constraint, out var tag))
             throw new InternalSolverException();
-        EditInfo info = new(tag, constraint, 0);
-        this.Edits[variable] = info;
+        variableInfo.Edit = new(tag, constraint, 0);
     }
 
-    public bool TryRemoveEditVariable(Variable variable)
+    public bool TryRemoveEditVariable(IVariable variable)
     {
-        if (!this.Edits.TryGetValue(variable, out var info))
+        var variableInfo = GetInfo(variable);
+        if (variableInfo?.Edit is null)
             return false;
-        TryRemoveConstraint(info.Constraint);
-        this.Edits.Remove(variable);
+
+        TryRemoveConstraint(variableInfo.Edit.Constraint);
+        variableInfo.Edit = null;
         return true;
     }
 
-    public void RemoveEditVariable(Variable variable)
+    public void RemoveEditVariable(IVariable variable)
     {
         if (!TryRemoveEditVariable(variable))
             throw new UnknownEditVariableException();
     }
 
-    public bool HasEditVariable(Variable variable)
-        => this.Edits.ContainsKey(variable);
+    public bool HasEditVariable(IVariable variable)
+        => GetInfo(variable)?.Edit is not null;
 
-    public void SuggestValue(Variable variable, double value)
+    public void SuggestValue(IVariable variable, double value)
     {
-        if (!this.Edits.TryGetValue(variable, out var info))
+        var variableInfo = GetInfo(variable);
+        if (variableInfo?.Edit is null)
             throw new UnknownEditVariableException();
 
-        double delta = value - info.Constant;
-        info.Constant = value;
+        double delta = value - variableInfo.Edit.Constant;
+        variableInfo.Edit.Constant = value;
 
         {
-            if (this.Rows.TryGetValue(info.Tag.Marker, out var row))
+            if (this.Rows.TryGetValue(variableInfo.Edit.Tag.Marker, out var row))
             {
                 if (row.Add(-delta) < 0)
-                    this.InfeasibleRows.Add(info.Tag.Marker);
+                    this.InfeasibleRows.Add(variableInfo.Edit.Tag.Marker);
                 DualOptimize();
                 return;
             }
 
-            if (this.Rows.TryGetValue(info.Tag.Other, out row))
+            if (this.Rows.TryGetValue(variableInfo.Edit.Tag.Other, out row))
             {
                 if (row.Add(-delta) < 0)
-                    this.InfeasibleRows.Add(info.Tag.Other);
+                    this.InfeasibleRows.Add(variableInfo.Edit.Tag.Other);
                 DualOptimize();
                 return;
             }
@@ -225,7 +241,7 @@ public sealed class Solver
 
         foreach (var (symbol, row) in this.Rows)
         {
-            double coefficient = row.GetCoefficientForSymbol(info.Tag.Marker);
+            double coefficient = row.GetCoefficientForSymbol(variableInfo.Edit.Tag.Marker);
             if (coefficient != 0 && row.Add(delta * coefficient) < 0 && symbol.Type != SymbolType.External)
                 this.InfeasibleRows.Add(symbol);
         }
@@ -235,8 +251,8 @@ public sealed class Solver
 
     public void UpdateVariables()
     {
-        foreach (var (variable, symbol) in this.Variables)
-            variable.Value = this.Rows.TryGetValue(symbol, out var row) ? row.Constant : 0;
+        foreach (var variableInfo in this.Variables.Values)
+            variableInfo.Variable.Value = this.Rows.TryGetValue(variableInfo.Symbol, out var row) ? row.Constant : 0;
     }
 
     private Row CreateRow(Constraint constraint, Tag tag)
@@ -248,7 +264,7 @@ public sealed class Solver
             if (Util.IsNearZero(term.Coefficient))
                 continue;
 
-            var symbol = GetVariableSymbol(term.Variable);
+            var symbol = ObtainInfo(term.Variable).Symbol;
             if (this.Rows.TryGetValue(symbol, out var otherRow))
                 row.Insert(otherRow, term.Coefficient);
             else
@@ -319,7 +335,7 @@ public sealed class Solver
 
         Symbol artificial = new(SymbolType.Slack);
         this.Rows[artificial] = new(row);
-        this.Artificial = new(row); // TODO: this looks wrong - should it be the same Row instance?
+        this.Artificial = new(row);
 
         Optimize(this.Artificial);
         bool success = Util.IsNearZero(this.Artificial.Constant);
@@ -370,10 +386,9 @@ public sealed class Solver
                 return;
 
             var entry = GetLeavingRow(entering) ?? throw new InternalSolverException("The objective is unbounded");
-            var leaving = this.Rows.FirstOrNull(kvp => kvp.Value == entry)?.Key ?? throw new NullReferenceException(); // TODO: improve exceptions; original code didn't handle this, so it's probably not very needed
-            var entryKey = leaving; // TODO: okay wtf, the Java code did the same `for` loop twice here. that can't possibly be right
+            var leaving = this.Rows.FirstOrNull(kvp => kvp.Value == entry)?.Key ?? throw new InternalSolverException();
 
-            this.Rows.Remove(entryKey);
+            this.Rows.Remove(leaving); // TODO: okay wtf, the Java code did the same `for` loop twice above, leading to this
             entry.SolveForSymbols(leaving, entering);
             Substitute(entering, entry);
             this.Rows[entering] = entry;
@@ -432,7 +447,7 @@ public sealed class Solver
 
     private static Symbol GetAnyPivotableSymbol(Row row)
     {
-        // TODO: the original code actually returned the last symbol, not the first one - does it matter?
+        // TODO: the original code actually returned the last symbol, not the first one, even though it claimed it did - does it matter?
         foreach (var symbol in row.Cells.Keys)
             if (symbol.Type is SymbolType.Slack or SymbolType.Error)
                 return symbol;
@@ -461,16 +476,19 @@ public sealed class Solver
         return leavingRow;
     }
 
-    private Symbol GetVariableSymbol(Variable variable)
-    {
-        if (!this.Variables.TryGetValue(variable, out var symbol))
-        {
-            symbol = new(SymbolType.External);
-            this.Variables[variable] = symbol;
-        }
-        return symbol;
-    }
-
     private static bool AreAllDummies(Row row)
         => row.Cells.Keys.All(s => s.Type == SymbolType.Dummy);
+
+    private VariableInfo? GetInfo(IVariable variable)
+        => this.Variables.TryGetValue(variable, out var info) ? info : null;
+
+    private VariableInfo ObtainInfo(IVariable variable)
+    {
+        if (!this.Variables.TryGetValue(variable, out var info))
+        {
+            info = new(variable);
+            this.Variables[variable] = info;
+        }
+        return info;
+    }
 }

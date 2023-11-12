@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace Nanoray.Kiwi;
 
-public sealed class Variable
+public sealed class Variable : IVariable
 {
     public string? Name { get; set; }
     public double Value { get; set; }
@@ -13,30 +13,29 @@ public sealed class Variable
         this.Value = value;
     }
 
-    /// <inheritdoc/>
-    public override string ToString()
-        => $"{{{Name ?? "<unnamed>"} = {Value}}}";
-
+    #region Variable-Variable operators
     public static Term operator -(Variable variable)
         => new(variable, -1);
 
-    public static Expression operator +(Variable lhs, Variable rhs)
+    public static Expression operator +(IVariable lhs, Variable rhs)
     {
         List<Term> terms = new() { new(lhs), new(rhs) };
         return new(terms);
     }
 
-    public static Expression operator -(Variable lhs, Variable rhs)
+    public static Expression operator -(IVariable lhs, Variable rhs)
         => lhs + -rhs;
+    #endregion
 
+    #region Variable-double operators
     public static Expression operator +(Variable lhs, double rhs)
-        => new Term(lhs) + rhs;
+        => ((IVariable)lhs).Add(rhs);
 
     public static Expression operator +(double lhs, Variable rhs)
         => rhs + lhs;
 
     public static Expression operator -(Variable lhs, double rhs)
-        => new Term(lhs) - rhs;
+        => ((IVariable)lhs).Subtract(rhs);
 
     public static Expression operator -(double lhs, Variable rhs)
         => lhs + -rhs;
@@ -49,4 +48,5 @@ public sealed class Variable
 
     public static Term operator /(Variable variable, double denominator)
         => new(variable, 1 / denominator);
+    #endregion
 }

@@ -30,10 +30,10 @@ public sealed class Constraint
     public static Constraint Make(Term lhs, RelationalOperator @operator, Expression rhs, double? strength = null)
         => new(lhs - rhs, @operator, strength);
 
-    public static Constraint Make(Expression lhs, RelationalOperator @operator, Variable rhs, double? strength = null)
+    public static Constraint Make(Expression lhs, RelationalOperator @operator, IVariable rhs, double? strength = null)
         => new(lhs - rhs, @operator, strength);
 
-    public static Constraint Make(Variable lhs, RelationalOperator @operator, Expression rhs, double? strength = null)
+    public static Constraint Make(IVariable lhs, RelationalOperator @operator, Expression rhs, double? strength = null)
         => new(lhs - rhs, @operator, strength);
 
     public static Constraint Make(Expression lhs, RelationalOperator @operator, double rhs, double? strength = null)
@@ -45,10 +45,10 @@ public sealed class Constraint
     public static Constraint Make(Term lhs, RelationalOperator @operator, Term rhs, double? strength = null)
         => new(lhs - rhs, @operator, strength);
 
-    public static Constraint Make(Term lhs, RelationalOperator @operator, Variable rhs, double? strength = null)
+    public static Constraint Make(Term lhs, RelationalOperator @operator, IVariable rhs, double? strength = null)
         => new(lhs - rhs, @operator, strength);
 
-    public static Constraint Make(Variable lhs, RelationalOperator @operator, Term rhs, double? strength = null)
+    public static Constraint Make(IVariable lhs, RelationalOperator @operator, Term rhs, double? strength = null)
         => new(lhs - rhs, @operator, strength);
 
     public static Constraint Make(Term lhs, RelationalOperator @operator, double rhs, double? strength = null)
@@ -57,18 +57,18 @@ public sealed class Constraint
     public static Constraint Make(double lhs, RelationalOperator @operator, Term rhs, double? strength = null)
         => new(lhs - rhs, @operator, strength);
 
-    public static Constraint Make(Variable lhs, RelationalOperator @operator, Variable rhs, double? strength = null)
-        => new(lhs - rhs, @operator, strength);
+    public static Constraint Make(IVariable lhs, RelationalOperator @operator, IVariable rhs, double? strength = null)
+        => new(lhs.Subtract(rhs), @operator, strength);
 
-    public static Constraint Make(Variable lhs, RelationalOperator @operator, double rhs, double? strength = null)
-        => new(lhs - rhs, @operator, strength);
+    public static Constraint Make(IVariable lhs, RelationalOperator @operator, double rhs, double? strength = null)
+        => new(lhs.Subtract(rhs), @operator, strength);
 
-    public static Constraint Make(double lhs, RelationalOperator @operator, Variable rhs, double? strength = null)
-        => new(lhs - rhs, @operator, strength);
+    public static Constraint Make(double lhs, RelationalOperator @operator, IVariable rhs, double? strength = null)
+        => new(rhs.Negate() + lhs, @operator, strength);
 
     private static Expression Reduce(Expression expr)
     {
-        Dictionary<Variable, double> variables = new();
+        Dictionary<IVariable, double> variables = new();
         foreach (var term in expr.Terms)
         {
             if (!variables.TryGetValue(term.Variable, out double value))

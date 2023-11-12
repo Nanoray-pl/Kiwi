@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 namespace Nanoray.Kiwi;
@@ -6,7 +5,7 @@ namespace Nanoray.Kiwi;
 internal sealed class Row
 {
     public double Constant { get; set; }
-    public Dictionary<Symbol, double> Cells { get; set; }
+    public Dictionary<Symbol, double> Cells { get; private set; }
 
     public Row(double constant = 0)
     {
@@ -17,7 +16,7 @@ internal sealed class Row
     public Row(Row other)
     {
         this.Constant = other.Constant;
-        this.Cells = new Dictionary<Symbol, double>(other.Cells);
+        this.Cells = new(other.Cells);
     }
 
     private void SetCell(Symbol symbol, double coefficient)
@@ -64,7 +63,7 @@ internal sealed class Row
     internal void SolveForSymbol(Symbol symbol)
     {
         if (!this.Cells.TryGetValue(symbol, out double symbolCoefficient))
-            throw new NullReferenceException(); // TODO: improve exceptions; original code didn't handle this, so it's probably not very needed
+            throw new InternalSolverException();
         this.Cells.Remove(symbol);
 
         double coefficient = -1 / symbolCoefficient;
