@@ -83,5 +83,8 @@ dotnet_diagnostic.CS1591.severity = none
 # NUnit2005: Consider using Assert.That(actual, Is.EqualTo(expected)) instead of Assert.AreEqual(expected, actual)
 dotnet_diagnostic.NUnit2005.severity = none
 
+# NUnit2043: Use ComparisonConstraint for better assertion messages in case of failure
+dotnet_diagnostic.NUnit2043.severity = none
+
 [*.md]
 guidelines = 100
