@@ -40,13 +40,13 @@ public record struct Term(
 
     #region Term-double operators
     public static Expression operator +(Term lhs, double rhs)
-        => new(new List<Term> { lhs }, rhs);
+        => new(lhs, rhs);
 
     public static Expression operator +(double lhs, Term rhs)
         => rhs + lhs;
 
     public static Expression operator -(Term lhs, double rhs)
-        => new(new List<Term> { lhs }, -rhs);
+        => new(lhs, -rhs);
 
     public static Expression operator -(double lhs, Term rhs)
         => lhs + -rhs;

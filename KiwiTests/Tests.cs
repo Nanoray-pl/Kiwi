@@ -1,9 +1,9 @@
 using Nanoray.Kiwi;
 using NUnit.Framework;
 
-namespace KiwiTests;
+namespace Kiwi.Tests;
 
-public class Tests
+public sealed class Tests
 {
     private const double Epsilon = 1.0e-8;
 

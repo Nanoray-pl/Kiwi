@@ -15,6 +15,8 @@ public record struct Expression(
     public readonly bool IsConstant
         => Terms.Count == 0;
 
+    public Expression(Term term, double constant = 0) : this(new List<Term> { term }, constant) { }
+
     public Expression(double constant = 0) : this(Array.Empty<Term>(), constant) { }
 
     #region Expression-Expression operators

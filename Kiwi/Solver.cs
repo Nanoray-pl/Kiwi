@@ -184,7 +184,7 @@ public sealed class Solver
             throw new ArgumentException("Strength cannot be Required");
 
         Term term = new(variable);
-        Constraint constraint = new(new Expression(new List<Term> { term }), RelationalOperator.Equal, strength);
+        Constraint constraint = new(new Expression(term), RelationalOperator.Equal, strength);
 
         AddConstraint(constraint);
         if (!this.Constraints.TryGetValue(constraint, out var tag))
