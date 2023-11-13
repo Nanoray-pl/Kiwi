@@ -67,8 +67,12 @@ internal sealed class ConstraintParser
                     Push(Pop() + Pop());
                     break;
                 case "-":
-                    Push(Pop() - Pop());
-                    break;
+                    {
+                        var rhs = Pop();
+                        var lhs = Pop();
+                        Push(lhs - rhs);
+                        break;
+                    }
                 case "*":
                     Push(Pop() * Pop());
                     break;
