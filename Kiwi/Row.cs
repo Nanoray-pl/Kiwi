@@ -1,16 +1,14 @@
-using System.Collections.Generic;
-
 namespace Nanoray.Kiwi;
 
 internal sealed class Row
 {
-    public double Constant { get; set; }
-    public Dictionary<Symbol, double> Cells { get; private set; }
+    public double Constant { get; private set; }
+    public OrderedDictionary<Symbol, double> Cells { get; private set; }
 
     public Row(double constant = 0)
     {
         this.Constant = constant;
-        this.Cells = new Dictionary<Symbol, double>();
+        this.Cells = new();
     }
 
     public Row(Row other)
@@ -41,7 +39,7 @@ internal sealed class Row
     }
 
     internal void Remove(Symbol symbol)
-        => Cells.Remove(symbol);
+        => this.Cells.Remove(symbol);
 
     internal void ReverseSign()
     {

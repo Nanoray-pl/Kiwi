@@ -6,16 +6,15 @@ namespace Nanoray.Kiwi;
 
 public sealed class Solver
 {
-    private sealed class Tag
-    {
-        public Symbol Marker { get; set; } = new();
-        public Symbol Other { get; set; } = new();
-    }
+    private record struct Tag(
+        Symbol Marker,
+        Symbol? Other
+    );
 
     private sealed class EditInfo
     {
-        public Tag Tag { get; private set; }
-        public Constraint Constraint { get; private set; }
+        public Tag Tag { get; init; }
+        public Constraint Constraint { get; init; }
         public double Constant { get; set; }
 
         public EditInfo(Tag tag, Constraint constraint, double constant)
@@ -28,20 +27,21 @@ public sealed class Solver
 
     private sealed class VariableInfo
     {
-        public IVariable Variable { get; private set; }
-        public Symbol Symbol { get; private set; }
+        public IVariable Variable { get; init; }
+        public Symbol Symbol { get; init; }
         public EditInfo? Edit { get; set; }
 
-        public VariableInfo(IVariable variable, Symbol? symbol = null, EditInfo? edit = null)
+        public VariableInfo(IVariable variable, Symbol symbol, EditInfo? edit = null)
         {
             this.Variable = variable;
-            this.Symbol = symbol ?? new(SymbolType.External);
+            this.Symbol = symbol;
             this.Edit = edit;
         }
     }
 
+    private int NextSymbolID { get; set; } = 0;
     private Dictionary<Constraint, Tag> Constraints { get; set; } = new();
-    private Dictionary<Symbol, Row> Rows { get; set; } = new();
+    private OrderedDictionary<Symbol, Row> Rows { get; set; } = new();
     private Dictionary<IVariable, VariableInfo> Variables { get; set; } = new();
     private List<Symbol> InfeasibleRows { get; set; } = new();
     private Row Objective { get; set; } = new();
@@ -52,11 +52,10 @@ public sealed class Solver
         if (Constraints.ContainsKey(constraint))
             throw new DuplicateConstraintException(constraint);
 
-        Tag tag = new();
-        var row = CreateRow(constraint, tag);
+        var (row, tag) = CreateRow(constraint);
         var subject = ChooseSubject(row, tag);
 
-        if (subject.Type == SymbolType.Invalid && AreAllDummies(row))
+        if (subject is null && AreAllDummies(row))
         {
             if (Util.IsNearZero(row.Constant))
                 throw new UnsatisfiableConstraintException(constraint);
@@ -64,16 +63,16 @@ public sealed class Solver
                 subject = tag.Marker;
         }
 
-        if (subject.Type == SymbolType.Invalid)
+        if (subject is null)
         {
             if (!AddWithArtificialVariable(row))
                 throw new UnsatisfiableConstraintException(constraint);
         }
         else
         {
-            row.SolveForSymbol(subject);
-            Substitute(subject, row);
-            this.Rows[subject] = row;
+            row.SolveForSymbol(subject.Value);
+            Substitute(subject.Value, row);
+            this.Rows[subject.Value] = row;
         }
 
         this.Constraints[constraint] = tag;
@@ -112,8 +111,8 @@ public sealed class Solver
     {
         if (tag.Marker.Type == SymbolType.Error)
             RemoveMarkerEffects(tag.Marker, constraint.Strength);
-        else if (tag.Other.Type == SymbolType.Error)
-            RemoveMarkerEffects(tag.Other, constraint.Strength);
+        else if (tag.Other is { } other && other.Type == SymbolType.Error)
+            RemoveMarkerEffects(other, constraint.Strength);
     }
 
     private void RemoveMarkerEffects(Symbol marker, double strength)
@@ -182,7 +181,7 @@ public sealed class Solver
         Term term = new(variable);
         Constraint constraint = new(new Expression(term), RelationalOperator.Equal, strength);
 
-        AddConstraint(constraint);
+        AddConstraint(constraint); // TODO: try catch and ignore, or rework that thing to not work on exceptions
         if (!this.Constraints.TryGetValue(constraint, out var tag))
             throw new InternalSolverException();
         variableInfo.Edit = new(tag, constraint, 0);
@@ -226,10 +225,10 @@ public sealed class Solver
                 return;
             }
 
-            if (this.Rows.TryGetValue(variableInfo.Edit.Tag.Other, out row))
+            if (variableInfo.Edit.Tag.Other is { } other && this.Rows.TryGetValue(other, out row))
             {
                 if (row.Add(-delta) < 0)
-                    this.InfeasibleRows.Add(variableInfo.Edit.Tag.Other);
+                    this.InfeasibleRows.Add(other);
                 DualOptimize();
                 return;
             }
@@ -251,9 +250,11 @@ public sealed class Solver
             variableInfo.Variable.Value = this.Rows.TryGetValue(variableInfo.Symbol, out var row) ? row.Constant : 0;
     }
 
-    private Row CreateRow(Constraint constraint, Tag tag)
+    private (Row, Tag) CreateRow(Constraint constraint)
     {
         Row row = new(constraint.Expression.Constant);
+        Symbol marker;
+        Symbol? other = null;
 
         foreach (var term in constraint.Expression.Terms)
         {
@@ -272,13 +273,14 @@ public sealed class Solver
             case RelationalOperator.LessThanOrEqual:
             case RelationalOperator.GreaterThanOrEqual:
                 double coefficient = constraint.Operator == RelationalOperator.LessThanOrEqual ? 1 : -1;
-                Symbol slack = new(SymbolType.Slack);
-                tag.Marker = slack;
+                Symbol slack = CreateSymbol(SymbolType.Slack);
+                marker = slack;
                 row.Insert(slack, coefficient);
+
                 if (constraint.Strength < Strength.Required)
                 {
-                    Symbol error = new(SymbolType.Error);
-                    tag.Other = error;
+                    Symbol error = CreateSymbol(SymbolType.Error);
+                    other = error;
                     row.Insert(error, -coefficient);
                     this.Objective.Insert(error, constraint.Strength);
                 }
@@ -286,10 +288,10 @@ public sealed class Solver
             case RelationalOperator.Equal:
                 if (constraint.Strength < Strength.Required)
                 {
-                    Symbol errorPlus = new(SymbolType.Error);
-                    Symbol errorMinus = new(SymbolType.Error);
-                    tag.Marker = errorPlus;
-                    tag.Other = errorMinus;
+                    Symbol errorPlus = CreateSymbol(SymbolType.Error);
+                    Symbol errorMinus = CreateSymbol(SymbolType.Error);
+                    marker = errorPlus;
+                    other = errorMinus;
                     row.Insert(errorPlus, -1);
                     row.Insert(errorMinus, 1);
                     this.Objective.Insert(errorPlus, constraint.Strength);
@@ -297,8 +299,8 @@ public sealed class Solver
                 }
                 else
                 {
-                    Symbol dummy = new(SymbolType.Dummy);
-                    tag.Marker = dummy;
+                    Symbol dummy = CreateSymbol(SymbolType.Dummy);
+                    marker = dummy;
                     row.Insert(dummy);
                 }
                 break;
@@ -308,10 +310,10 @@ public sealed class Solver
 
         if (row.Constant < 0)
             row.ReverseSign();
-        return row;
+        return (row, new(marker, other));
     }
 
-    private static Symbol ChooseSubject(Row row, Tag tag)
+    private static Symbol? ChooseSubject(Row row, Tag tag)
     {
         foreach (var symbol in row.Cells.Keys)
             if (symbol.Type == SymbolType.External)
@@ -319,17 +321,15 @@ public sealed class Solver
         if (tag.Marker.Type is SymbolType.Slack or SymbolType.Error)
             if (row.GetCoefficientForSymbol(tag.Marker) < 0)
                 return tag.Marker;
-        if (tag.Other.Type is SymbolType.Slack or SymbolType.Error)
-            if (row.GetCoefficientForSymbol(tag.Other) < 0)
+        if (tag.Other is { } other && other.Type is SymbolType.Slack or SymbolType.Error)
+            if (row.GetCoefficientForSymbol(other) < 0)
                 return tag.Other;
-        return new();
+        return null;
     }
 
     private bool AddWithArtificialVariable(Row row)
     {
-        // TODO: the Java code has a "TODO check this" here, so... yeah
-
-        Symbol artificial = new(SymbolType.Slack);
+        Symbol artificial = CreateSymbol(SymbolType.Slack);
         this.Rows[artificial] = new(row);
         this.Artificial = new(row);
 
@@ -339,16 +339,16 @@ public sealed class Solver
 
         if (this.Rows.TryGetValue(artificial, out var rowPointer))
         {
-            foreach (var (existingSymbol, existingRow) in this.Rows)
+            foreach (var (existingSymbol, existingRow) in this.Rows.Dictionary)
                 if (existingRow == rowPointer)
                     this.Rows.Remove(existingSymbol);
 
             if (rowPointer.Cells.Count == 0)
                 return success;
 
-            var entering = GetAnyPivotableSymbol(rowPointer);
-            if (entering.Type == SymbolType.Invalid)
+            if (GetAnyPivotableSymbol(rowPointer) is not { } entering)
                 return false;
+
             rowPointer.SolveForSymbols(artificial, entering);
             Substitute(entering, rowPointer);
             this.Rows[entering] = rowPointer;
@@ -377,14 +377,13 @@ public sealed class Solver
     {
         while (true)
         {
-            var entering = GetEnteringSymbol(objective);
-            if (entering.Type == SymbolType.Invalid)
+            if (GetEnteringSymbol(objective) is not { } entering)
                 return;
 
             var entry = GetLeavingRow(entering) ?? throw new InternalSolverException("The objective is unbounded");
             var leaving = this.Rows.FirstOrNull(kvp => kvp.Value == entry)?.Key ?? throw new InternalSolverException();
 
-            this.Rows.Remove(leaving); // TODO: okay wtf, the Java code did the same `for` loop twice above, leading to this
+            this.Rows.Remove(leaving);
             entry.SolveForSymbols(leaving, entering);
             Substitute(entering, entry);
             this.Rows[entering] = entry;
@@ -400,10 +399,7 @@ public sealed class Solver
             if (!this.Rows.TryGetValue(leaving, out var row) || row.Constant < 0)
                 continue;
 
-            var entering = GetDualEnteringSymbol(row);
-            if (entering.Type == SymbolType.Invalid)
-                throw new InternalSolverException();
-
+            var entering = GetDualEnteringSymbol(row) ?? throw new InternalSolverException();
             this.Rows.Remove(leaving);
             row.SolveForSymbols(leaving, entering);
             Substitute(entering, row);
@@ -411,17 +407,17 @@ public sealed class Solver
         }
     }
 
-    private static Symbol GetEnteringSymbol(Row objective)
+    private static Symbol? GetEnteringSymbol(Row objective)
     {
         foreach (var (symbol, value) in objective.Cells)
             if (symbol.Type != SymbolType.Dummy && value < 0)
                 return symbol;
-        return new();
+        return null;
     }
 
-    private Symbol GetDualEnteringSymbol(Row row)
+    private Symbol? GetDualEnteringSymbol(Row row)
     {
-        Symbol entering = new();
+        Symbol? entering = null;
         double ratio = double.MaxValue;
 
         foreach (var (symbol, value) in row.Cells)
@@ -441,14 +437,8 @@ public sealed class Solver
         return entering;
     }
 
-    private static Symbol GetAnyPivotableSymbol(Row row)
-    {
-        // TODO: the original code actually returned the last symbol, not the first one, even though it claimed it did - does it matter?
-        foreach (var symbol in row.Cells.Keys)
-            if (symbol.Type is SymbolType.Slack or SymbolType.Error)
-                return symbol;
-        return new();
-    }
+    private static Symbol? GetAnyPivotableSymbol(Row row)
+        => row.Cells.Keys.LastOrNull(s => s.Type is SymbolType.Slack or SymbolType.Error);
 
     private Row? GetLeavingRow(Symbol entering)
     {
@@ -457,6 +447,9 @@ public sealed class Solver
 
         foreach (var (symbol, candidateRow) in this.Rows)
         {
+            if (symbol.Type == SymbolType.External)
+                continue;
+
             double coefficient = candidateRow.GetCoefficientForSymbol(entering);
             if (coefficient >= 0)
                 continue;
@@ -472,6 +465,9 @@ public sealed class Solver
         return leavingRow;
     }
 
+    private Symbol CreateSymbol(SymbolType type)
+        => new(++this.NextSymbolID, type);
+
     private static bool AreAllDummies(Row row)
         => row.Cells.Keys.All(s => s.Type == SymbolType.Dummy);
 
@@ -482,7 +478,7 @@ public sealed class Solver
     {
         if (!this.Variables.TryGetValue(variable, out var info))
         {
-            info = new(variable);
+            info = new(variable, CreateSymbol(SymbolType.External));
             this.Variables[variable] = info;
         }
         return info;
