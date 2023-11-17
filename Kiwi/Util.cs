@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace Nanoray.Kiwi;
 
@@ -8,6 +9,7 @@ internal static class Util
 {
     private const double Epsilon = 1.0e-8;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsNearZero(double value)
         => Math.Abs(value) < Epsilon;
 

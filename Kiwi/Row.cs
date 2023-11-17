@@ -1,22 +1,27 @@
+using System.Runtime.CompilerServices;
+
 namespace Nanoray.Kiwi;
 
 internal sealed class Row
 {
-    public double Constant { get; private set; }
-    public OrderedDictionary<Symbol, double> Cells { get; private set; }
+    public double Constant => _Constant;
+    public readonly OrderedDictionary<Symbol, double> Cells;
+
+    private double _Constant;
 
     public Row(double constant = 0)
     {
-        this.Constant = constant;
+        this._Constant = constant;
         this.Cells = new();
     }
 
     public Row(Row other)
     {
-        this.Constant = other.Constant;
+        this._Constant = other._Constant;
         this.Cells = new(other.Cells);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SetCell(Symbol symbol, double coefficient)
     {
         if (Util.IsNearZero(coefficient))
@@ -26,16 +31,16 @@ internal sealed class Row
     }
 
     internal double Add(double value)
-        => this.Constant += value;
+        => this._Constant += value;
 
     internal void Insert(Symbol symbol, double coefficient = 1)
-        => SetCell(symbol, Cells.GetValueOrDefault(symbol) + coefficient);
+        => SetCell(symbol, Cells.Dictionary.GetValueOrDefault(symbol) + coefficient);
 
     internal void Insert(Row other, double coefficient = 1)
     {
-        this.Constant += other.Constant * coefficient;
-        foreach (var (symbol, symbolCoefficient) in other.Cells)
-            SetCell(symbol, this.Cells.GetValueOrDefault(symbol) + symbolCoefficient * coefficient);
+        this._Constant += other._Constant * coefficient;
+        foreach (var (symbol, symbolCoefficient) in other.Cells.Dictionary)
+            SetCell(symbol, this.Cells.Dictionary.GetValueOrDefault(symbol) + symbolCoefficient * coefficient);
     }
 
     internal void Remove(Symbol symbol)
@@ -43,21 +48,21 @@ internal sealed class Row
 
     internal void ReverseSign()
     {
-        this.Constant = -this.Constant;
-        foreach (var (symbol, coefficient) in this.Cells)
+        this._Constant = -this._Constant;
+        foreach (var (symbol, coefficient) in this.Cells.Dictionary)
             this.Cells[symbol] = -coefficient;
     }
 
     internal void SolveForSymbol(Symbol symbol)
     {
-        if (!this.Cells.TryGetValue(symbol, out double symbolCoefficient))
+        if (!this.Cells.Dictionary.TryGetValue(symbol, out double symbolCoefficient))
             throw new InternalSolverException();
         this.Cells.Remove(symbol);
 
         double coefficient = -1 / symbolCoefficient;
-        this.Constant *= coefficient;
+        this._Constant *= coefficient;
 
-        foreach (var (cellSymbol, cellCoefficient) in this.Cells)
+        foreach (var (cellSymbol, cellCoefficient) in this.Cells.Dictionary)
             this.Cells[cellSymbol] = cellCoefficient * coefficient;
     }
 
@@ -68,11 +73,11 @@ internal sealed class Row
     }
 
     internal double GetCoefficientForSymbol(Symbol symbol)
-        => this.Cells.GetValueOrDefault(symbol);
+        => this.Cells.Dictionary.GetValueOrDefault(symbol);
 
     internal void Substitute(Symbol symbol, Row row)
     {
-        if (!this.Cells.TryGetValue(symbol, out double coefficient))
+        if (!this.Cells.Dictionary.TryGetValue(symbol, out double coefficient))
             return;
         this.Cells.Remove(symbol);
         Insert(row, coefficient);

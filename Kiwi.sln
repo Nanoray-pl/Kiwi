@@ -5,7 +5,9 @@ VisualStudioVersion = 17.8.34212.112
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Kiwi", "Kiwi\Kiwi.csproj", "{ABA4B9E0-7258-43E8-86E9-2744F680F8D0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KiwiTests", "KiwiTests\KiwiTests.csproj", "{3C1914F4-3586-4758-93E7-1482B034EC3A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KiwiTests", "KiwiTests\KiwiTests.csproj", "{3C1914F4-3586-4758-93E7-1482B034EC3A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KiwiBenchmarks", "KiwiBenchmarks\KiwiBenchmarks.csproj", "{D4B83D36-653F-46FA-A3AF-CF521C896180}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{3C1914F4-3586-4758-93E7-1482B034EC3A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3C1914F4-3586-4758-93E7-1482B034EC3A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3C1914F4-3586-4758-93E7-1482B034EC3A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D4B83D36-653F-46FA-A3AF-CF521C896180}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D4B83D36-653F-46FA-A3AF-CF521C896180}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D4B83D36-653F-46FA-A3AF-CF521C896180}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D4B83D36-653F-46FA-A3AF-CF521C896180}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -7,8 +7,8 @@ namespace Nanoray.Kiwi;
 
 internal sealed class OrderedDictionary<TKey, TValue> : IReadOnlyDictionary<TKey, TValue> where TKey : notnull
 {
-    public List<TKey> Keys { get; init; }
-    public Dictionary<TKey, TValue> Dictionary { get; init; }
+    public readonly List<TKey> Keys;
+    public readonly Dictionary<TKey, TValue> Dictionary;
 
     public int Count
         => Keys.Count;

@@ -4,7 +4,7 @@ using Nanoray.Kiwi;
 
 namespace Kiwi.Tests;
 
-internal sealed class ConstraintParser
+public sealed class ConstraintParser
 {
     private static readonly Regex Regex = new("([^!]+)(<=|==|>=|[GL]?EQ)([^!]+)\\s*(!(?:required|strong|medium|weak))?");
     private const string Ops = "-+/*^";
