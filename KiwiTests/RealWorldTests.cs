@@ -118,15 +118,15 @@ public sealed class RealWorldTests
     private sealed class TestVariableResolver : ConstraintParser.ICassowaryVariableResolver
     {
         private SolverTransaction Transaction { get; init; }
-        private Dictionary<string, Dictionary<string, IVariable>> Nodes { get; init; }
+        private Dictionary<string, Dictionary<string, Variable>> Nodes { get; init; }
 
-        public TestVariableResolver(SolverTransaction transaction, Dictionary<string, Dictionary<string, IVariable>> nodes)
+        public TestVariableResolver(SolverTransaction transaction, Dictionary<string, Dictionary<string, Variable>> nodes)
         {
             this.Transaction = transaction;
             this.Nodes = nodes;
         }
 
-        public IVariable? ResolveVariable(string variableName)
+        public Variable? ResolveVariable(string variableName)
         {
             string[] stringArray = variableName.Split(".");
             if (stringArray.Length != 2)
@@ -139,7 +139,7 @@ public sealed class RealWorldTests
         public Expression? ResolveConstant(string name)
             => double.TryParse(name, NumberStyles.Number, CultureInfo.InvariantCulture, out double result) ? new(result) : null;
 
-        private Dictionary<string, IVariable> ObtainNode(string nodeName)
+        private Dictionary<string, Variable> ObtainNode(string nodeName)
         {
             if (!this.Nodes.TryGetValue(nodeName, out var node))
             {
@@ -149,7 +149,7 @@ public sealed class RealWorldTests
             return node;
         }
 
-        private IVariable ObtainVariableFromNode(Dictionary<string, IVariable> node, string variableName)
+        private Variable ObtainVariableFromNode(Dictionary<string, Variable> node, string variableName)
         {
             if (node.TryGetValue(variableName, out var variable))
                 return variable;
@@ -160,10 +160,10 @@ public sealed class RealWorldTests
             switch (variableName)
             {
                 case Right:
-                    this.Transaction.AddConstraint(Constraint.Make(variable, RelationalOperator.Equal, ObtainVariableFromNode(node, Left).Add(ObtainVariableFromNode(node, Width))));
+                    this.Transaction.AddConstraint(Constraint.Make(variable, RelationalOperator.Equal, ObtainVariableFromNode(node, Left) + ObtainVariableFromNode(node, Width)));
                     break;
                 case Bottom:
-                    this.Transaction.AddConstraint(Constraint.Make(variable, RelationalOperator.Equal, ObtainVariableFromNode(node, Top).Add(ObtainVariableFromNode(node, Height))));
+                    this.Transaction.AddConstraint(Constraint.Make(variable, RelationalOperator.Equal, ObtainVariableFromNode(node, Top) + ObtainVariableFromNode(node, Height)));
                     break;
             }
 
@@ -175,7 +175,7 @@ public sealed class RealWorldTests
     public void TestGridLayout()
     {
         Solver solver = new();
-        Dictionary<string, Dictionary<string, IVariable>> nodes = new();
+        Dictionary<string, Dictionary<string, Variable>> nodes = new();
 
         solver.WithTransaction(transaction =>
         {
@@ -188,22 +188,22 @@ public sealed class RealWorldTests
             }
         });
 
-        //Assert.AreEqual(20.0, nodes["thumb0"][Top].Value, Epsilon);
-        //Assert.AreEqual(20.0, nodes["thumb1"][Top].Value, Epsilon);
+        Assert.AreEqual(20.0, nodes["thumb0"][Top].Value, Epsilon);
+        Assert.AreEqual(20.0, nodes["thumb1"][Top].Value, Epsilon);
 
-        //Assert.AreEqual(85.0, nodes["title0"][Top].Value, Epsilon);
-        //Assert.AreEqual(85.0, nodes["title1"][Top].Value, Epsilon);
+        Assert.AreEqual(85.0, nodes["title0"][Top].Value, Epsilon);
+        Assert.AreEqual(85.0, nodes["title1"][Top].Value, Epsilon);
 
-        //Assert.AreEqual(210.0, nodes["thumb2"][Top].Value, Epsilon);
-        //Assert.AreEqual(210.0, nodes["thumb3"][Top].Value, Epsilon);
+        Assert.AreEqual(210.0, nodes["thumb2"][Top].Value, Epsilon);
+        Assert.AreEqual(210.0, nodes["thumb3"][Top].Value, Epsilon);
 
-        //Assert.AreEqual(275.0, nodes["title2"][Top].Value, Epsilon);
-        //Assert.AreEqual(275.0, nodes["title3"][Top].Value, Epsilon);
+        Assert.AreEqual(275.0, nodes["title2"][Top].Value, Epsilon);
+        Assert.AreEqual(275.0, nodes["title3"][Top].Value, Epsilon);
 
-        //Assert.AreEqual(420.0, nodes["thumb4"][Top].Value, Epsilon);
-        //Assert.AreEqual(420.0, nodes["thumb5"][Top].Value, Epsilon);
+        Assert.AreEqual(420.0, nodes["thumb4"][Top].Value, Epsilon);
+        Assert.AreEqual(420.0, nodes["thumb5"][Top].Value, Epsilon);
 
-        //Assert.AreEqual(485.0, nodes["title4"][Top].Value, Epsilon);
-        //Assert.AreEqual(485.0, nodes["title5"][Top].Value, Epsilon);
+        Assert.AreEqual(485.0, nodes["title4"][Top].Value, Epsilon);
+        Assert.AreEqual(485.0, nodes["title5"][Top].Value, Epsilon);
     }
 }

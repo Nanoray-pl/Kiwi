@@ -26,12 +26,12 @@ public sealed class Solver
 
     private sealed class VariableInfo
     {
-        internal IVariable Variable { get; init; }
+        internal Variable Variable { get; init; }
         internal Symbol Symbol { get; init; }
         internal EditInfo? Edit { get; set; }
         internal int ReferenceCount { get; set; }
 
-        internal VariableInfo(IVariable variable, Symbol symbol, EditInfo? edit = null, int referenceCount = 0)
+        internal VariableInfo(Variable variable, Symbol symbol, EditInfo? edit = null, int referenceCount = 0)
         {
             this.Variable = variable;
             this.Symbol = symbol;
@@ -54,7 +54,7 @@ public sealed class Solver
     private int NextSymbolID { get; set; } = 0;
     private Dictionary<Constraint, Tag> Constraints { get; set; } = new();
     private OrderedDictionary<Symbol, Row> Rows { get; set; } = new();
-    private Dictionary<IVariable, VariableInfo> Variables { get; set; } = new();
+    private Dictionary<Variable, VariableInfo> Variables { get; set; } = new();
     private List<Symbol> InfeasibleRows { get; set; } = new();
     private Row Objective { get; set; } = new();
     private Row? Artificial { get; set; }
@@ -74,7 +74,7 @@ public sealed class Solver
     public void UpdateVariables()
     {
         foreach (var variableInfo in this.Variables.Values)
-            variableInfo.Variable.Value = this.Rows.TryGetValue(variableInfo.Symbol, out var row) ? row.Constant : 0;
+            variableInfo.Variable.Store.Value = this.Rows.TryGetValue(variableInfo.Symbol, out var row) ? row.Constant : 0;
     }
 
     internal void FlushUnusedVariables()
@@ -140,7 +140,7 @@ public sealed class Solver
     internal bool HasConstraint(Constraint constraint)
         => this.Constraints.ContainsKey(constraint);
 
-    internal void AddEditVariable(IVariable variable, double strength)
+    internal void AddEditVariable(Variable variable, double strength)
     {
         var variableInfo = ObtainInfo(variable);
         if (variableInfo.Edit is not null)
@@ -157,7 +157,7 @@ public sealed class Solver
         variableInfo.Edit = new(tag, constraint, 0);
     }
 
-    internal bool TryRemoveEditVariable(IVariable variable)
+    internal bool TryRemoveEditVariable(Variable variable)
     {
         var variableInfo = GetInfo(variable);
         if (variableInfo?.Edit is null)
@@ -168,16 +168,16 @@ public sealed class Solver
         return true;
     }
 
-    internal void RemoveEditVariable(IVariable variable)
+    internal void RemoveEditVariable(Variable variable)
     {
         if (!TryRemoveEditVariable(variable))
             throw new UnknownEditVariableException();
     }
 
-    internal bool HasEditVariable(IVariable variable)
+    internal bool HasEditVariable(Variable variable)
         => GetInfo(variable)?.Edit is not null;
 
-    internal void SuggestValue(IVariable variable, double value)
+    internal void SuggestValue(Variable variable, double value)
     {
         var variableInfo = GetInfo(variable);
         if (variableInfo?.Edit is null)
@@ -495,10 +495,10 @@ public sealed class Solver
     private Symbol CreateSymbol(SymbolType type)
         => new(++this.NextSymbolID, type);
 
-    private VariableInfo? GetInfo(IVariable variable)
+    private VariableInfo? GetInfo(Variable variable)
         => this.Variables.GetValueOrNull(variable);
 
-    private VariableInfo ObtainInfo(IVariable variable)
+    private VariableInfo ObtainInfo(Variable variable)
     {
         if (!this.Variables.TryGetValue(variable, out var info))
         {

@@ -1,18 +1,18 @@
-using System.Collections.Generic;
+using System;
 using System.Linq;
 
 namespace Nanoray.Kiwi;
 
-public partial record struct Expression
+public readonly partial struct Expression
 {
     public static Expression operator -(Expression expression)
-        => new(expression.Terms.Select(t => -t).ToList(), -expression.Constant);
+        => new(expression.Terms.Select(t => -t).ToArray(), -expression.Constant);
 
     public static Expression operator +(Expression lhs, Expression rhs)
     {
-        List<Term> terms = new(lhs.Terms.Count + rhs.Terms.Count);
-        terms.AddRange(lhs.Terms);
-        terms.AddRange(rhs.Terms);
+        Term[] terms = new Term[lhs.Terms.Length + rhs.Terms.Length];
+        Array.Copy(lhs.Terms, 0, terms, 0, lhs.Terms.Length);
+        Array.Copy(rhs.Terms, 0, terms, lhs.Terms.Length, rhs.Terms.Length);
         return new(terms, lhs.Constant + rhs.Constant);
     }
 

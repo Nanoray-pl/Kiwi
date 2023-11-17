@@ -11,7 +11,7 @@ public sealed class ConstraintParser
 
     public interface ICassowaryVariableResolver
     {
-        IVariable? ResolveVariable(string variableName);
+        Variable? ResolveVariable(string variableName);
         Expression? ResolveConstant(string name);
     }
 

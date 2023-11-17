@@ -1,13 +1,15 @@
 namespace Nanoray.Kiwi;
 
-public sealed partial class Variable : IVariable
+public partial record struct Variable(
+    IVariableStore Store,
+    string? Name = null
+)
 {
-    public string? Name { get; set; }
-    public double Value { get; set; }
-
-    public Variable(string? name = null, double value = 0)
+    public readonly double Value
     {
-        this.Name = name;
-        this.Value = value;
+        get => Store.Value;
+        set => Store.Value = value;
     }
+
+    public Variable(string? name = null) : this(new VariableStore(), name) { }
 }

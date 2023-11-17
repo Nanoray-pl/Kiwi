@@ -2,10 +2,10 @@ using System.Linq;
 
 namespace Nanoray.Kiwi;
 
-public partial record struct Expression
+public readonly partial struct Expression
 {
     public static Expression operator +(Expression expression, double constant)
-        => new(expression.Terms.ToList(), expression.Constant + constant);
+        => new(expression.Terms, expression.Constant + constant);
 
     public static Expression operator +(double constant, Expression expression)
         => expression + constant;
@@ -17,11 +17,11 @@ public partial record struct Expression
         => constant + -expression;
 
     public static Expression operator *(Expression expression, double coefficient)
-        => new(expression.Terms.Select(t => t * coefficient).ToList(), expression.Constant * coefficient);
+        => new(expression.Terms.Select(t => t * coefficient).ToArray(), expression.Constant * coefficient);
 
     public static Expression operator *(double coefficient, Expression expression)
         => expression / coefficient;
 
     public static Expression operator /(Expression expression, double denominator)
-        => new(expression.Terms.Select(t => t / denominator).ToList(), expression.Constant / denominator);
+        => new(expression.Terms.Select(t => t / denominator).ToArray(), expression.Constant / denominator);
 }

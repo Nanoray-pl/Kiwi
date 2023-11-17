@@ -6,7 +6,7 @@ public partial record struct Term
         => new(lhs, rhs);
 
     public static Expression operator +(double lhs, Term rhs)
-        => rhs + lhs;
+        => new(rhs, lhs);
 
     public static Expression operator -(Term lhs, double rhs)
         => new(lhs, -rhs);

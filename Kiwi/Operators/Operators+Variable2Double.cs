@@ -1,15 +1,15 @@
 namespace Nanoray.Kiwi;
 
-public sealed partial class Variable
+public partial record struct Variable
 {
     public static Expression operator +(Variable lhs, double rhs)
-        => ((IVariable)lhs).Add(rhs);
+        => new(new Term(lhs), rhs);
 
     public static Expression operator +(double lhs, Variable rhs)
-        => rhs + lhs;
+        => new(new Term(rhs), lhs);
 
     public static Expression operator -(Variable lhs, double rhs)
-        => ((IVariable)lhs).Subtract(rhs);
+        => lhs + -rhs;
 
     public static Expression operator -(double lhs, Variable rhs)
         => lhs + -rhs;
@@ -18,7 +18,7 @@ public sealed partial class Variable
         => new(variable, coefficient);
 
     public static Term operator *(double coefficient, Variable variable)
-        => variable * coefficient;
+        => new(variable, coefficient);
 
     public static Term operator /(Variable variable, double denominator)
         => new(variable, 1 / denominator);

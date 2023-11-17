@@ -18,16 +18,16 @@ public sealed class SolverTransaction
         ) : IChange;
 
         public record struct AddEditVariable(
-            IVariable Variable,
+            Variable Variable,
             double Strength
         ) : IChange;
 
         public record struct RemoveEditVariable(
-            IVariable Variable
+            Variable Variable
         ) : IChange;
 
         public record struct SuggestValue(
-            IVariable Variable,
+            Variable Variable,
             double Value
         ) : IChange;
 
@@ -50,13 +50,13 @@ public sealed class SolverTransaction
     public void RemoveConstraint(Constraint constraint)
         => this.Changes.Add(new IChange.RemoveConstraint(constraint));
 
-    public void AddEditVariable(IVariable variable, double strength)
+    public void AddEditVariable(Variable variable, double strength)
         => this.Changes.Add(new IChange.AddEditVariable(variable, strength));
 
-    public void RemoveEditVariable(IVariable variable)
+    public void RemoveEditVariable(Variable variable)
         => this.Changes.Add(new IChange.RemoveEditVariable(variable));
 
-    public void SuggestValue(IVariable variable, double value)
+    public void SuggestValue(Variable variable, double value)
         => this.Changes.Add(new IChange.SuggestValue(variable, value));
 
     public void ApplyPartial()

@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace Nanoray.Kiwi;
 
 public partial record struct Term
@@ -8,10 +6,7 @@ public partial record struct Term
         => new(term.Variable, -term.Coefficient);
 
     public static Expression operator +(Term lhs, Term rhs)
-    {
-        List<Term> terms = new() { lhs, rhs };
-        return new(terms);
-    }
+        => new(new Term[] { lhs, rhs });
 
     public static Expression operator -(Term lhs, Term rhs)
         => lhs + -rhs;

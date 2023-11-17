@@ -1,7 +1,7 @@
 namespace Nanoray.Kiwi;
 
 public partial record struct Term(
-    IVariable Variable,
+    Variable Variable,
     double Coefficient = 1
 )
 {
