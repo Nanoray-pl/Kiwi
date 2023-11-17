@@ -13,13 +13,17 @@ public sealed class VariableConstantInequalityTests
         Solver solver = new();
         Variable x = new("x");
 
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.LessThanOrEqual, 100));
-        solver.UpdateVariables();
+        solver.WithTransaction(transaction =>
+        {
+            transaction.AddConstraint(Constraint.Make(x, RelationalOperator.LessThanOrEqual, 100));
+        });
 
         Assert.That(x.Value <= 100);
 
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 90));
-        solver.UpdateVariables();
+        solver.WithTransaction(transaction =>
+        {
+            transaction.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 90));
+        });
 
         Assert.AreEqual(90, x.Value, Epsilon);
     }
@@ -30,15 +34,19 @@ public sealed class VariableConstantInequalityTests
         Solver solver = new();
         Variable x = new("x");
 
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.LessThanOrEqual, 100));
-        solver.UpdateVariables();
+        solver.WithTransaction(transaction =>
+        {
+            transaction.AddConstraint(Constraint.Make(x, RelationalOperator.LessThanOrEqual, 100));
+        });
 
         Assert.That(x.Value <= 100);
 
         Assert.Throws<UnsatisfiableConstraintException>(() =>
         {
-            solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 110));
-            solver.UpdateVariables();
+            solver.WithTransaction(transaction =>
+            {
+                transaction.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 110));
+            });
         });
     }
 
@@ -48,13 +56,17 @@ public sealed class VariableConstantInequalityTests
         Solver solver = new();
         Variable x = new("x");
 
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.GreaterThanOrEqual, 100));
-        solver.UpdateVariables();
+        solver.WithTransaction(transaction =>
+        {
+            transaction.AddConstraint(Constraint.Make(x, RelationalOperator.GreaterThanOrEqual, 100));
+        });
 
         Assert.That(x.Value >= 100);
 
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 110));
-        solver.UpdateVariables();
+        solver.WithTransaction(transaction =>
+        {
+            transaction.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 110));
+        });
 
         Assert.AreEqual(110, x.Value, Epsilon);
     }
@@ -65,15 +77,19 @@ public sealed class VariableConstantInequalityTests
         Solver solver = new();
         Variable x = new("x");
 
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.GreaterThanOrEqual, 100));
-        solver.UpdateVariables();
+        solver.WithTransaction(transaction =>
+        {
+            transaction.AddConstraint(Constraint.Make(x, RelationalOperator.GreaterThanOrEqual, 100));
+        });
 
         Assert.That(x.Value >= 100);
 
         Assert.Throws<UnsatisfiableConstraintException>(() =>
         {
-            solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 90));
-            solver.UpdateVariables();
+            solver.WithTransaction(transaction =>
+            {
+                transaction.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 90));
+            });
         });
     }
 }

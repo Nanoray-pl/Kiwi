@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace Nanoray.Kiwi;
@@ -82,4 +83,23 @@ internal sealed class Row
         this.Cells.Remove(symbol);
         Insert(row, coefficient);
     }
+
+    internal Symbol? GetEnteringSymbol()
+    {
+        foreach (var (symbol, value) in this.Cells)
+            if (symbol.Type != SymbolType.Dummy && value < 0)
+                return symbol;
+        return null;
+    }
+
+    internal Symbol? GetAnyPivotableSymbol()
+    {
+        foreach (var symbol in this.Cells.Keys)
+            if (symbol.Type is SymbolType.Slack or SymbolType.Error)
+                return symbol;
+        return null;
+    }
+
+    internal bool AreAllDummies()
+        => this.Cells.Keys.All(s => s.Type == SymbolType.Dummy);
 }

@@ -1,23 +1,22 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Nanoray.Kiwi;
 
 public sealed class Solver
 {
-    private record struct Tag(
+    internal record struct Tag(
         Symbol Marker,
         Symbol? Other
     );
 
     private sealed class EditInfo
     {
-        public Tag Tag { get; init; }
-        public Constraint Constraint { get; init; }
-        public double Constant { get; set; }
+        internal Tag Tag { get; init; }
+        internal Constraint Constraint { get; init; }
+        internal double Constant { get; set; }
 
-        public EditInfo(Tag tag, Constraint constraint, double constant)
+        internal EditInfo(Tag tag, Constraint constraint, double constant)
         {
             this.Tag = tag;
             this.Constraint = constraint;
@@ -27,15 +26,28 @@ public sealed class Solver
 
     private sealed class VariableInfo
     {
-        public IVariable Variable { get; init; }
-        public Symbol Symbol { get; init; }
-        public EditInfo? Edit { get; set; }
+        internal IVariable Variable { get; init; }
+        internal Symbol Symbol { get; init; }
+        internal EditInfo? Edit { get; set; }
+        internal int ReferenceCount { get; set; }
 
-        public VariableInfo(IVariable variable, Symbol symbol, EditInfo? edit = null)
+        internal VariableInfo(IVariable variable, Symbol symbol, EditInfo? edit = null, int referenceCount = 0)
         {
             this.Variable = variable;
             this.Symbol = symbol;
             this.Edit = edit;
+            this.ReferenceCount = referenceCount;
+        }
+    }
+
+    public bool AutoSolve
+    {
+        get => _AutoSolve;
+        set
+        {
+            if (!_AutoSolve && value)
+                DualOptimize();
+            _AutoSolve = value;
         }
     }
 
@@ -47,51 +59,69 @@ public sealed class Solver
     private Row Objective { get; set; } = new();
     private Row? Artificial { get; set; }
 
-    public void AddConstraint(Constraint constraint)
+    private bool _AutoSolve = false;
+
+    public SolverTransaction StartTransaction()
+        => new(this);
+
+    public void WithTransaction(Action<SolverTransaction> closure)
+    {
+        var transaction = StartTransaction();
+        closure(transaction);
+        transaction.Apply();
+    }
+
+    public void UpdateVariables()
+    {
+        foreach (var variableInfo in this.Variables.Values)
+            variableInfo.Variable.Value = this.Rows.TryGetValue(variableInfo.Symbol, out var row) ? row.Constant : 0;
+    }
+
+    internal void FlushUnusedVariables()
+    {
+        foreach (var info in Variables.Values)
+            if (info.ReferenceCount <= 0)
+                Variables.Remove(info.Variable);
+    }
+
+    internal Tag AddConstraint(Constraint constraint)
     {
         if (Constraints.ContainsKey(constraint))
             throw new DuplicateConstraintException(constraint);
 
-        var (row, tag) = CreateRow(constraint);
-        var subject = ChooseSubject(row, tag);
+        CreateRow(constraint, out var row, out var tag);
 
-        if (subject is null && AreAllDummies(row))
+        if (GetSubject(constraint, row, ref tag) is { } subject)
         {
-            if (Util.IsNearZero(row.Constant))
-                throw new UnsatisfiableConstraintException(constraint);
-            else
-                subject = tag.Marker;
-        }
-
-        if (subject is null)
-        {
-            if (!AddWithArtificialVariable(row))
-                throw new UnsatisfiableConstraintException(constraint);
-        }
-        else
-        {
-            row.SolveForSymbol(subject.Value);
-            Substitute(subject.Value, row);
-            this.Rows[subject.Value] = row;
+            row.SolveForSymbol(subject);
+            Substitute(subject, row);
+            this.Rows[subject] = row;
         }
 
         this.Constraints[constraint] = tag;
         Optimize(this.Objective);
+        return tag;
     }
 
-    public bool TryRemoveConstraint(Constraint constraint)
+    internal bool TryRemoveConstraint(Constraint constraint)
     {
         if (!this.Constraints.TryGetValue(constraint, out var tag))
             return false;
 
-        this.Constraints.Remove(constraint);
+        foreach (var term in constraint.Expression.Terms)
+        {
+            if (!Util.IsNearZero(term.Coefficient))
+                continue;
+            if (!this.Variables.TryGetValue(term.Variable, out var info))
+                continue;
+            info.ReferenceCount--;
+        }
+
         RemoveConstraintEffects(constraint, tag);
 
         if (!this.Rows.Remove(tag.Marker))
         {
-            var row = GetMarkerLeavingRow(tag.Marker) ?? throw new InternalSolverException();
-            var leaving = this.Rows.FirstOrNull(kvp => kvp.Value == row)?.Key ?? throw new InternalSolverException();
-
+            var (leaving, row) = GetMarkerLeavingRow(tag.Marker) ?? throw new InternalSolverException();
             this.Rows.Remove(leaving);
             row.SolveForSymbols(leaving, tag.Marker);
             Substitute(tag.Marker, row);
@@ -101,10 +131,106 @@ public sealed class Solver
         return true;
     }
 
-    public void RemoveConstraint(Constraint constraint)
+    internal void RemoveConstraint(Constraint constraint)
     {
         if (!TryRemoveConstraint(constraint))
             throw new UnknownConstraintException(constraint);
+    }
+
+    internal bool HasConstraint(Constraint constraint)
+        => this.Constraints.ContainsKey(constraint);
+
+    internal void AddEditVariable(IVariable variable, double strength)
+    {
+        var variableInfo = ObtainInfo(variable);
+        if (variableInfo.Edit is not null)
+            throw new DuplicateEditVariableException();
+
+        strength = Strength.Clip(strength);
+        if (strength == Strength.Required)
+            throw new ArgumentException("Strength cannot be Required");
+
+        Term term = new(variable);
+        Constraint constraint = new(new Expression(term), RelationalOperator.Equal, strength);
+
+        var tag = AddConstraint(constraint); // TODO: try catch and ignore, or rework that thing to not work on exceptions
+        variableInfo.Edit = new(tag, constraint, 0);
+    }
+
+    internal bool TryRemoveEditVariable(IVariable variable)
+    {
+        var variableInfo = GetInfo(variable);
+        if (variableInfo?.Edit is null)
+            return false;
+
+        TryRemoveConstraint(variableInfo.Edit.Constraint);
+        variableInfo.Edit = null;
+        return true;
+    }
+
+    internal void RemoveEditVariable(IVariable variable)
+    {
+        if (!TryRemoveEditVariable(variable))
+            throw new UnknownEditVariableException();
+    }
+
+    internal bool HasEditVariable(IVariable variable)
+        => GetInfo(variable)?.Edit is not null;
+
+    internal void SuggestValue(IVariable variable, double value)
+    {
+        var variableInfo = GetInfo(variable);
+        if (variableInfo?.Edit is null)
+            throw new UnknownEditVariableException();
+
+        double delta = value - variableInfo.Edit.Constant;
+        variableInfo.Edit.Constant = value;
+
+        {
+            if (this.Rows.TryGetValue(variableInfo.Edit.Tag.Marker, out var row))
+            {
+                if (row.Add(-delta) < 0)
+                    this.InfeasibleRows.Add(variableInfo.Edit.Tag.Marker);
+                goto Finish;
+            }
+
+            if (variableInfo.Edit.Tag.Other is { } other && this.Rows.TryGetValue(other, out row))
+            {
+                if (row.Add(-delta) < 0)
+                    this.InfeasibleRows.Add(other);
+                goto Finish;
+            }
+        }
+
+        foreach (var (symbol, row) in this.Rows)
+        {
+            double coefficient = row.GetCoefficientForSymbol(variableInfo.Edit.Tag.Marker);
+            if (coefficient != 0 && row.Add(delta * coefficient) < 0 && symbol.Type != SymbolType.External)
+                this.InfeasibleRows.Add(symbol);
+        }
+
+        Finish:
+        if (this._AutoSolve)
+            DualOptimize();
+    }
+
+    private Symbol? GetSubject(Constraint constraint, Row row, ref Tag tag)
+    {
+        var subject = ChooseSubject(row, ref tag);
+        if (subject is not null)
+            return subject;
+
+        if (row.AreAllDummies())
+        {
+            if (Util.IsNearZero(row.Constant))
+                throw new UnsatisfiableConstraintException(constraint);
+            else
+                return tag.Marker;
+        }
+
+        if (!AddWithArtificialVariable(row))
+            throw new UnsatisfiableConstraintException(constraint);
+        return null;
     }
 
     private void RemoveConstraintEffects(Constraint constraint, Tag tag)
@@ -123,14 +249,14 @@ public sealed class Solver
             this.Objective.Insert(marker, -strength);
     }
 
-    private Row? GetMarkerLeavingRow(Symbol marker)
+    private (Symbol, Row)? GetMarkerLeavingRow(Symbol marker)
     {
         double ratio1 = double.MaxValue;
         double ratio2 = double.MaxValue;
 
-        Row? first = null;
-        Row? second = null;
-        Row? third = null;
+        (Symbol, Row)? first = null;
+        (Symbol, Row)? second = null;
+        (Symbol, Row)? third = null;
 
         foreach (var (symbol, row) in this.Rows)
         {
@@ -140,7 +266,7 @@ public sealed class Solver
 
             if (symbol.Type == SymbolType.External)
             {
-                third = row;
+                third = (symbol, row);
             }
             else if (coefficient < 0)
             {
@@ -148,7 +274,7 @@ public sealed class Solver
                 if (newRatio < ratio1)
                 {
                     ratio1 = newRatio;
-                    first = row;
+                    first = (symbol, row);
                 }
             }
             else
@@ -157,7 +283,7 @@ public sealed class Solver
                 if (newRatio < ratio2)
                 {
                     ratio2 = newRatio;
-                    second = row;
+                    second = (symbol, row);
                 }
             }
         }
@@ -165,94 +291,9 @@ public sealed class Solver
         return first ?? second ?? third;
     }
 
-    public bool HasConstraint(Constraint constraint)
-        => this.Constraints.ContainsKey(constraint);
-
-    public void AddEditVariable(IVariable variable, double strength)
+    private void CreateRow(Constraint constraint, out Row row, out Tag tag)
     {
-        var variableInfo = ObtainInfo(variable);
-        if (variableInfo.Edit is not null)
-            throw new DuplicateEditVariableException();
-
-        strength = Strength.Clip(strength);
-        if (strength == Strength.Required)
-            throw new ArgumentException("Strength cannot be Required");
-
-        Term term = new(variable);
-        Constraint constraint = new(new Expression(term), RelationalOperator.Equal, strength);
-
-        AddConstraint(constraint); // TODO: try catch and ignore, or rework that thing to not work on exceptions
-        if (!this.Constraints.TryGetValue(constraint, out var tag))
-            throw new InternalSolverException();
-        variableInfo.Edit = new(tag, constraint, 0);
-    }
-
-    public bool TryRemoveEditVariable(IVariable variable)
-    {
-        var variableInfo = GetInfo(variable);
-        if (variableInfo?.Edit is null)
-            return false;
-
-        TryRemoveConstraint(variableInfo.Edit.Constraint);
-        variableInfo.Edit = null;
-        return true;
-    }
-
-    public void RemoveEditVariable(IVariable variable)
-    {
-        if (!TryRemoveEditVariable(variable))
-            throw new UnknownEditVariableException();
-    }
-
-    public bool HasEditVariable(IVariable variable)
-        => GetInfo(variable)?.Edit is not null;
-
-    public void SuggestValue(IVariable variable, double value)
-    {
-        var variableInfo = GetInfo(variable);
-        if (variableInfo?.Edit is null)
-            throw new UnknownEditVariableException();
-
-        double delta = value - variableInfo.Edit.Constant;
-        variableInfo.Edit.Constant = value;
-
-        {
-            if (this.Rows.TryGetValue(variableInfo.Edit.Tag.Marker, out var row))
-            {
-                if (row.Add(-delta) < 0)
-                    this.InfeasibleRows.Add(variableInfo.Edit.Tag.Marker);
-                DualOptimize();
-                return;
-            }
-
-            if (variableInfo.Edit.Tag.Other is { } other && this.Rows.TryGetValue(other, out row))
-            {
-                if (row.Add(-delta) < 0)
-                    this.InfeasibleRows.Add(other);
-                DualOptimize();
-                return;
-            }
-        }
-
-        foreach (var (symbol, row) in this.Rows)
-        {
-            double coefficient = row.GetCoefficientForSymbol(variableInfo.Edit.Tag.Marker);
-            if (coefficient != 0 && row.Add(delta * coefficient) < 0 && symbol.Type != SymbolType.External)
-                this.InfeasibleRows.Add(symbol);
-        }
-
-        DualOptimize();
-    }
-
-    public void UpdateVariables()
-    {
-        foreach (var variableInfo in this.Variables.Values)
-            variableInfo.Variable.Value = this.Rows.TryGetValue(variableInfo.Symbol, out var row) ? row.Constant : 0;
-    }
-
-    private (Row, Tag) CreateRow(Constraint constraint)
-    {
-        Row row = new(constraint.Expression.Constant);
+        row = new(constraint.Expression.Constant);
         Symbol marker;
         Symbol? other = null;
 
@@ -261,11 +302,13 @@ public sealed class Solver
             if (Util.IsNearZero(term.Coefficient))
                 continue;
 
-            var symbol = ObtainInfo(term.Variable).Symbol;
-            if (this.Rows.TryGetValue(symbol, out var otherRow))
+            var info = ObtainInfo(term.Variable);
+            info.ReferenceCount += 1;
+
+            if (this.Rows.TryGetValue(info.Symbol, out var otherRow))
                 row.Insert(otherRow, term.Coefficient);
             else
-                row.Insert(symbol, term.Coefficient);
+                row.Insert(info.Symbol, term.Coefficient);
         }
 
         switch (constraint.Operator)
@@ -310,10 +353,10 @@ public sealed class Solver
 
         if (row.Constant < 0)
             row.ReverseSign();
-        return (row, new(marker, other));
+        tag = new(marker, other);
     }
 
-    private static Symbol? ChooseSubject(Row row, Tag tag)
+    private static Symbol? ChooseSubject(Row row, ref Tag tag)
     {
         foreach (var symbol in row.Cells.Keys)
             if (symbol.Type == SymbolType.External)
@@ -323,7 +366,7 @@ public sealed class Solver
                 return tag.Marker;
         if (tag.Other is { } other && other.Type is SymbolType.Slack or SymbolType.Error)
             if (row.GetCoefficientForSymbol(other) < 0)
-                return tag.Other;
+                return other;
         return null;
     }
 
@@ -339,14 +382,11 @@ public sealed class Solver
 
         if (this.Rows.TryGetValue(artificial, out var rowPointer))
         {
-            foreach (var (existingSymbol, existingRow) in this.Rows.Dictionary)
-                if (existingRow == rowPointer)
-                    this.Rows.Remove(existingSymbol);
-
+            this.Rows.Remove(artificial);
             if (rowPointer.Cells.Count == 0)
                 return success;
 
-            if (GetAnyPivotableSymbol(rowPointer) is not { } entering)
+            if (rowPointer.GetAnyPivotableSymbol() is not { } entering)
                 return false;
 
             rowPointer.SolveForSymbols(artificial, entering);
@@ -377,11 +417,9 @@ public sealed class Solver
     {
         while (true)
         {
-            if (GetEnteringSymbol(objective) is not { } entering)
+            if (objective.GetEnteringSymbol() is not { } entering)
                 return;
-
-            var entry = GetLeavingRow(entering) ?? throw new InternalSolverException("The objective is unbounded");
-            var leaving = this.Rows.FirstOrNull(kvp => kvp.Value == entry)?.Key ?? throw new InternalSolverException();
+            var (leaving, entry) = GetLeavingRow(entering) ?? throw new InternalSolverException("The objective is unbounded");
 
             this.Rows.Remove(leaving);
             entry.SolveForSymbols(leaving, entering);
@@ -407,14 +445,6 @@ public sealed class Solver
         }
     }
 
-    private static Symbol? GetEnteringSymbol(Row objective)
-    {
-        foreach (var (symbol, value) in objective.Cells)
-            if (symbol.Type != SymbolType.Dummy && value < 0)
-                return symbol;
-        return null;
-    }
-
     private Symbol? GetDualEnteringSymbol(Row row)
     {
         Symbol? entering = null;
@@ -437,13 +467,10 @@ public sealed class Solver
         return entering;
     }
 
-    private static Symbol? GetAnyPivotableSymbol(Row row)
-        => row.Cells.Keys.LastOrNull(s => s.Type is SymbolType.Slack or SymbolType.Error);
-
-    private Row? GetLeavingRow(Symbol entering)
+    private (Symbol, Row)? GetLeavingRow(Symbol entering)
     {
         double ratio = double.MaxValue;
-        Row? leavingRow = null;
+        (Symbol, Row)? leavingRow = null;
 
         foreach (var (symbol, candidateRow) in this.Rows)
         {
@@ -458,7 +485,7 @@ public sealed class Solver
             if (newRatio < ratio)
             {
                 ratio = newRatio;
-                leavingRow = candidateRow;
+                leavingRow = (symbol, candidateRow);
             }
         }
 
@@ -467,9 +494,6 @@ public sealed class Solver
 
     private Symbol CreateSymbol(SymbolType type)
         => new(++this.NextSymbolID, type);
-
-    private static bool AreAllDummies(Row row)
-        => row.Cells.Keys.All(s => s.Type == SymbolType.Dummy);
 
     private VariableInfo? GetInfo(IVariable variable)
         => this.Variables.GetValueOrNull(variable);
