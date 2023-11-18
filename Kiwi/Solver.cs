@@ -61,33 +61,51 @@ public sealed class Solver
 
     private bool _AutoSolve = false;
 
-    public SolverTransaction StartTransaction()
-        => new(this);
-
-    public void WithTransaction(Action<SolverTransaction> closure)
+    public void WithTransaction(Action<Solver> closure)
     {
-        var transaction = StartTransaction();
-        closure(transaction);
-        transaction.Apply();
+        bool oldAutoSolve = _AutoSolve;
+        _AutoSolve = false;
+
+        closure(this);
+
+        if (oldAutoSolve)
+            _AutoSolve = true;
+        else
+            Solve();
+
+        UpdateVariables();
     }
+
+    public void Solve()
+        => DualOptimize();
 
     public void UpdateVariables()
     {
+        FlushUnusedVariables();
         foreach (var variableInfo in this.Variables.Values)
             variableInfo.Variable.Store.Value = this.Rows.TryGetValue(variableInfo.Symbol, out var row) ? row.Constant : 0;
     }
 
-    internal void FlushUnusedVariables()
+    private void FlushUnusedVariables()
     {
         foreach (var info in Variables.Values)
             if (info.ReferenceCount <= 0)
                 Variables.Remove(info.Variable);
     }
 
-    internal Tag AddConstraint(Constraint constraint)
+    public void AddConstraint(Constraint constraint)
+    {
+        if (!TryAddConstraint(constraint))
+            throw new DuplicateConstraintException(constraint);
+    }
+
+    public bool TryAddConstraint(Constraint constraint)
+        => PrivateTryAddConstraint(constraint) != null;
+
+    private Tag? PrivateTryAddConstraint(Constraint constraint)
     {
         if (Constraints.ContainsKey(constraint))
-            throw new DuplicateConstraintException(constraint);
+            return null;
 
         CreateRow(constraint, out var row, out var tag);
 
@@ -103,7 +121,7 @@ public sealed class Solver
         return tag;
     }
 
-    internal bool TryRemoveConstraint(Constraint constraint)
+    public bool TryRemoveConstraint(Constraint constraint)
     {
         if (!this.Constraints.TryGetValue(constraint, out var tag))
             return false;
@@ -131,20 +149,26 @@ public sealed class Solver
         return true;
     }
 
-    internal void RemoveConstraint(Constraint constraint)
+    public void RemoveConstraint(Constraint constraint)
     {
         if (!TryRemoveConstraint(constraint))
             throw new UnknownConstraintException(constraint);
     }
 
-    internal bool HasConstraint(Constraint constraint)
+    public bool HasConstraint(Constraint constraint)
         => this.Constraints.ContainsKey(constraint);
 
-    internal void AddEditVariable(Variable variable, double strength)
+    public void AddEditVariable(Variable variable, double strength)
+    {
+        if (!TryAddEditVariable(variable, strength))
+            throw new DuplicateEditVariableException();
+    }
+
+    public bool TryAddEditVariable(Variable variable, double strength)
     {
         var variableInfo = ObtainInfo(variable);
         if (variableInfo.Edit is not null)
-            throw new DuplicateEditVariableException();
+            return false;
 
         strength = Strength.Clip(strength);
         if (strength == Strength.Required)
@@ -153,11 +177,12 @@ public sealed class Solver
         Term term = new(variable);
         Constraint constraint = new(new Expression(term), RelationalOperator.Equal, strength);
 
-        var tag = AddConstraint(constraint); // TODO: try catch and ignore, or rework that thing to not work on exceptions
-        variableInfo.Edit = new(tag, constraint, 0);
+        if (PrivateTryAddConstraint(constraint) is { } tag)
+            variableInfo.Edit = new(tag, constraint, 0);
+        return true;
     }
 
-    internal bool TryRemoveEditVariable(Variable variable)
+    public bool TryRemoveEditVariable(Variable variable)
     {
         var variableInfo = GetInfo(variable);
         if (variableInfo?.Edit is null)
@@ -168,16 +193,16 @@ public sealed class Solver
         return true;
     }
 
-    internal void RemoveEditVariable(Variable variable)
+    public void RemoveEditVariable(Variable variable)
     {
         if (!TryRemoveEditVariable(variable))
             throw new UnknownEditVariableException();
     }
 
-    internal bool HasEditVariable(Variable variable)
+    public bool HasEditVariable(Variable variable)
         => GetInfo(variable)?.Edit is not null;
 
-    internal void SuggestValue(Variable variable, double value)
+    public void SuggestValue(Variable variable, double value)
     {
         var variableInfo = GetInfo(variable);
         if (variableInfo?.Edit is null)

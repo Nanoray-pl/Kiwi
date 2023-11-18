@@ -117,12 +117,12 @@ public sealed class RealWorldTests
 
     private sealed class TestVariableResolver : ConstraintParser.ICassowaryVariableResolver
     {
-        private SolverTransaction Transaction { get; init; }
+        private Solver Solver { get; init; }
         private Dictionary<string, Dictionary<string, Variable>> Nodes { get; init; }
 
-        public TestVariableResolver(SolverTransaction transaction, Dictionary<string, Dictionary<string, Variable>> nodes)
+        public TestVariableResolver(Solver solver, Dictionary<string, Dictionary<string, Variable>> nodes)
         {
-            this.Transaction = transaction;
+            this.Solver = solver;
             this.Nodes = nodes;
         }
 
@@ -160,10 +160,10 @@ public sealed class RealWorldTests
             switch (variableName)
             {
                 case Right:
-                    this.Transaction.AddConstraint(Constraint.Make(variable, RelationalOperator.Equal, ObtainVariableFromNode(node, Left) + ObtainVariableFromNode(node, Width)));
+                    this.Solver.AddConstraint(Constraint.Make(variable, RelationalOperator.Equal, ObtainVariableFromNode(node, Left) + ObtainVariableFromNode(node, Width)));
                     break;
                 case Bottom:
-                    this.Transaction.AddConstraint(Constraint.Make(variable, RelationalOperator.Equal, ObtainVariableFromNode(node, Top) + ObtainVariableFromNode(node, Height)));
+                    this.Solver.AddConstraint(Constraint.Make(variable, RelationalOperator.Equal, ObtainVariableFromNode(node, Top) + ObtainVariableFromNode(node, Height)));
                     break;
             }
 
@@ -177,14 +177,14 @@ public sealed class RealWorldTests
         Solver solver = new();
         Dictionary<string, Dictionary<string, Variable>> nodes = new();
 
-        solver.WithTransaction(transaction =>
+        solver.WithTransaction(solver =>
         {
-            var variableResolver = new TestVariableResolver(transaction, nodes);
+            var variableResolver = new TestVariableResolver(solver, nodes);
 
             foreach (string constraintString in Constraints)
             {
                 var constraint = ConstraintParser.ParseConstraint(constraintString, variableResolver);
-                transaction.AddConstraint(constraint);
+                solver.AddConstraint(constraint);
             }
         });
 
