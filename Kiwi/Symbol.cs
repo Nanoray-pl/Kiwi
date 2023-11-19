@@ -4,10 +4,10 @@ namespace Nanoray.Kiwi;
 
 internal readonly struct Symbol : IEquatable<Symbol>
 {
-    public readonly int ID;
-    public readonly SymbolType Type;
+    internal readonly int ID;
+    internal readonly SymbolType Type;
 
-    public Symbol(int id, SymbolType type)
+    internal Symbol(int id, SymbolType type)
     {
         this.ID = id;
         this.Type = type;

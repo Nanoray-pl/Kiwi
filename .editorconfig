@@ -74,12 +74,6 @@ csharp_prefer_braces = false:hint
 ## documentation: https://marketplace.visualstudio.com/items?itemName=PaulHarrington.EditorGuidelines
 ##########
 
-# IDE0009: Member access should be qualified.
-dotnet_diagnostic.IDE0009.severity = none
-
-# CS1591: Missing XML comment for publicly visible type or member
-dotnet_diagnostic.CS1591.severity = none
-
 # NUnit2005: Consider using Assert.That(actual, Is.EqualTo(expected)) instead of Assert.AreEqual(expected, actual)
 dotnet_diagnostic.NUnit2005.severity = none
 

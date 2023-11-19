@@ -2,19 +2,27 @@ using System;
 
 namespace Nanoray.Kiwi;
 
+/// <summary>Describes various built-in constraint strengths, with the most notable one being <see cref="Strength.Required"/>.</summary>
 public static class Strength
 {
-    public static readonly double Required = Create(1000, 1000, 1000);
-    public static readonly double Strong = Create(1, 0, 0);
-    public static readonly double Medium = Create(0, 1, 0);
-    public static readonly double Weak = Create(0, 0, 1);
+    /// <summary>The highest possible constraint strength. Constraints with this strength <b>must</b> be satisfied, otherwise <see cref="UnsatisfiableConstraintException"/> will be thrown.</summary>
+    public static readonly double Required = 1000;
 
-    public static double Create(double a, double b, double c, double w)
-        => Math.Max(0, Math.Min(1_000, a * w)) * 1_000_000 + Math.Max(0, Math.Min(1_000, b * w)) * 1_000 + Math.Max(0, Math.Min(1_000, c * w));
+    /// <summary>A strong constraint strength.</summary>
+    public static readonly double Strong = 750;
 
-    public static double Create(double a, double b, double c)
-        => Create(a, b, c, 1);
+    /// <summary>A medium constraint strength.</summary>
+    public static readonly double Medium = 500;
 
+    /// <summary>A weak constraint strength.</summary>
+    public static readonly double Weak = 250;
+
+    /// <summary>The lowest possible constraint strength. Constraints with this strength will be completely ignored.</summary>
+    public static readonly double Disabled = 0;
+
+    /// <summary>Clips any constraint strength to the allowed range.</summary>
+    /// <param name="value">The constraint strength to clip.</param>
+    /// <returns>Clipped constraint strength.</returns>
     public static double Clip(double value)
-        => Math.Max(0, Math.Min(Required, value));
+        => Math.Max(Disabled, Math.Min(Required, value));
 }

@@ -7,19 +7,19 @@ namespace Nanoray.Kiwi;
 
 internal sealed class OrderedDictionary<TKey, TValue> : IReadOnlyDictionary<TKey, TValue> where TKey : notnull
 {
-    public readonly List<TKey> Keys;
-    public readonly Dictionary<TKey, TValue> Dictionary;
+    internal readonly List<TKey> Keys;
+    internal readonly Dictionary<TKey, TValue> Dictionary;
 
     public int Count
         => Keys.Count;
 
-    public OrderedDictionary()
+    internal OrderedDictionary()
     {
         this.Keys = new();
         this.Dictionary = new();
     }
 
-    public OrderedDictionary(OrderedDictionary<TKey, TValue> other)
+    internal OrderedDictionary(OrderedDictionary<TKey, TValue> other)
     {
         this.Keys = new(other.Keys);
         this.Dictionary = new(other.Dictionary);

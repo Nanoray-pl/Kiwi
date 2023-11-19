@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Security.AccessControl;
 
 namespace Nanoray.Kiwi;
 
+/// <summary>Describes a linear equation/inequality constraint solver system.</summary>
 public sealed class Solver
 {
     internal record struct Tag(
@@ -40,6 +42,7 @@ public sealed class Solver
         }
     }
 
+    /// <summary>Whether the solver should automatically re-solve the equation system when adding new constraints.</summary>
     public bool AutoSolve
     {
         get => _AutoSolve;
@@ -61,6 +64,9 @@ public sealed class Solver
 
     private bool _AutoSolve = false;
 
+    /// <summary>Starts a new solver system transaction.</summary>
+    /// <remarks>The solver will not try to re-solve the equation system until the end of the provided closure.</remarks>
+    /// <param name="closure">The actions to execute on the solver, before trying to re-solve the equation system.</param>
     public void WithTransaction(Action<Solver> closure)
     {
         bool oldAutoSolve = _AutoSolve;
@@ -69,16 +75,25 @@ public sealed class Solver
         closure(this);
 
         if (oldAutoSolve)
+        {
             _AutoSolve = true;
+            UpdateVariables();
+        }
         else
+        {
             Solve();
+        }
+    }
 
+    /// <summary>Solves the equation system.</summary>
+    public void Solve()
+    {
+        DualOptimize();
         UpdateVariables();
     }
 
-    public void Solve()
-        => DualOptimize();
-
+    /// <summary>Updates the variables' values according to the current state of the (solved) equation system.</summary>
+    /// <remarks>This method should only be used when working with a <see cref="Solver"/> that has <see cref="AutoSolve"/> set to <c>true</c>; otherwise it is automatically called when appropriate.</remarks>
     public void UpdateVariables()
     {
         FlushUnusedVariables();
@@ -93,12 +108,18 @@ public sealed class Solver
                 Variables.Remove(info.Variable);
     }
 
+    /// <summary>Add a constraint to the solver system.</summary>
+    /// <param name="constraint">The constraint to add.</param>
+    /// <exception cref="DuplicateConstraintException">Thrown if the constraint is already added to the solver system.</exception>
     public void AddConstraint(Constraint constraint)
     {
         if (!TryAddConstraint(constraint))
             throw new DuplicateConstraintException(constraint);
     }
 
+    /// <summary>Try to add a constraint to the solver system.</summary>
+    /// <param name="constraint">The constraint to add</param>
+    /// <returns><c>true</c> if the operation succeeded, <c>false</c> otherwise (if the constraint is already added to the solver system).</returns>
     public bool TryAddConstraint(Constraint constraint)
         => PrivateTryAddConstraint(constraint) != null;
 
@@ -121,12 +142,24 @@ public sealed class Solver
         return tag;
     }
 
+    /// <summary>Remove a constraint from the solver system.</summary>
+    /// <param name="constraint">The constraint to remove.</param>
+    /// <exception cref="UnknownConstraintException">Thrown if the constraint is not added to the solver system.</exception>
+    public void RemoveConstraint(Constraint constraint)
+    {
+        if (!TryRemoveConstraint(constraint))
+            throw new UnknownConstraintException(constraint);
+    }
+
+    /// <summary>Try to remove a constraint from the solver system.</summary>
+    /// <param name="constraint">The constraint to remove.</param>
+    /// <returns><c>true</c> if the operation succeeded, <c>false</c> otherwise (if the constraint is not added to the solver system).</returns>
     public bool TryRemoveConstraint(Constraint constraint)
     {
         if (!this.Constraints.TryGetValue(constraint, out var tag))
             return false;
 
-        foreach (var term in constraint.Expression.Terms)
+        foreach (var term in constraint.Expression._Terms)
         {
             if (!Util.IsNearZero(term.Coefficient))
                 continue;
@@ -149,21 +182,26 @@ public sealed class Solver
         return true;
     }
 
-    public void RemoveConstraint(Constraint constraint)
-    {
-        if (!TryRemoveConstraint(constraint))
-            throw new UnknownConstraintException(constraint);
-    }
-
+    /// <summary>Check whether the constraint is added to the solver system.</summary>
+    /// <param name="constraint">The constraint to check.</param>
+    /// <returns><c>true</c> if the constraint is added to the solver system, <c>false</c> otherwise.</returns>
     public bool HasConstraint(Constraint constraint)
         => this.Constraints.ContainsKey(constraint);
 
+    /// <summary>Add an edit constraint on the provided variable, allowing the use of <see cref="SuggestValue(Variable, double)"/>.</summary>
+    /// <param name="variable">The variable to add the edit constraint on.</param>
+    /// <param name="strength">The strength of the constraint to add. The strength cannot be <see cref="Strength.Required"/>.</param>
+    /// <exception cref="DuplicateEditVariableException">Thrown if the variable already has an edit constraint attached.</exception>
     public void AddEditVariable(Variable variable, double strength)
     {
         if (!TryAddEditVariable(variable, strength))
             throw new DuplicateEditVariableException();
     }
 
+    /// <summary>Try to add an edit constraint on the provided variable, allowing the use of <see cref="SuggestValue(Variable, double)"/>.</summary>
+    /// <param name="variable">The variable to add the edit constraint on.</param>
+    /// <param name="strength">The strength of the constraint to add. The strength cannot be <see cref="Strength.Required"/>.</param>
+    /// <returns><c>true</c> if the operation succeeded, <c>false</c> otherwise (if the variable already has an edit constraint attached).</returns>
     public bool TryAddEditVariable(Variable variable, double strength)
     {
         var variableInfo = ObtainInfo(variable);
@@ -182,6 +220,20 @@ public sealed class Solver
         return true;
     }
 
+    /// <summary>Remove an edit constraint from the provided variable.</summary>
+    /// <param name="variable">The variable to remove the edit constraint from.</param>
+    /// <exception cref="UnknownEditVariableException">Thrown if the variable does not have an edit constraint attached.</exception>
+    /// <seealso cref="AddEditVariable(Variable, double)"/>
+    public void RemoveEditVariable(Variable variable)
+    {
+        if (!TryRemoveEditVariable(variable))
+            throw new UnknownEditVariableException();
+    }
+
+    /// <summary>Try to remove an edit constraint from the provided variable.</summary>
+    /// <param name="variable">The variable to remove the edit constraint from.</param>
+    /// <returns><c>true</c> if the operation succeeded, <c>false</c> otherwise (if the variable does not have an edit constraint attached).</returns>
+    /// <seealso cref="TryAddEditVariable(Variable, double)"/>
     public bool TryRemoveEditVariable(Variable variable)
     {
         var variableInfo = GetInfo(variable);
@@ -193,15 +245,19 @@ public sealed class Solver
         return true;
     }
 
-    public void RemoveEditVariable(Variable variable)
-    {
-        if (!TryRemoveEditVariable(variable))
-            throw new UnknownEditVariableException();
-    }
-
+    /// <summary>Check whether the variable has an edit constraint attached.</summary>
+    /// <param name="variable">The variable to check.</param>
+    /// <returns><c>true</c> if the variable has an edit constraint attached, <c>false</c> otherwise.</returns>
+    /// <seealso cref="AddEditVariable(Variable, double)"/>
     public bool HasEditVariable(Variable variable)
         => GetInfo(variable)?.Edit is not null;
 
+    /// <summary>Specify a desired value for the provided variable.</summary>
+    /// <remarks>The variable needs to have been previously attached with an edit constraint.</remarks>
+    /// <param name="variable">The variable.</param>
+    /// <param name="value">The value for the variable.</param>
+    /// <exception cref="UnknownEditVariableException">Thrown if the variable does not have an edit constraint attached.</exception>
+    /// <seealso cref="AddEditVariable(Variable, double)"/>
     public void SuggestValue(Variable variable, double value)
     {
         var variableInfo = GetInfo(variable);
@@ -212,6 +268,7 @@ public sealed class Solver
         variableInfo.Edit.Constant = value;
 
         {
+            // Check first if the positive error variable is basic.
             if (this.Rows.TryGetValue(variableInfo.Edit.Tag.Marker, out var row))
             {
                 if (row.Add(-delta) < 0)
@@ -219,6 +276,7 @@ public sealed class Solver
                 goto Finish;
             }
 
+            // Check next if the negative error variable is basic.
             if (variableInfo.Edit.Tag.Other is { } other && this.Rows.TryGetValue(other, out row))
             {
                 if (row.Add(-delta) < 0)
@@ -227,6 +285,7 @@ public sealed class Solver
             }
         }
 
+        // Otherwise update each row where the error variables exist.
         foreach (var (symbol, row) in this.Rows)
         {
             double coefficient = row.GetCoefficientForSymbol(variableInfo.Edit.Tag.Marker);
@@ -316,13 +375,33 @@ public sealed class Solver
         return first ?? second ?? third;
     }
 
+    /// <summary>Create a new Row object for the given constraint.</summary>
+    /// <remarks>
+    /// <para>
+    /// The terms in the constraint will be converted to cells in the row.
+    /// Any term in the constraint with a coefficient of zero is ignored.
+    /// This method uses the `getVarSymbol` method to get the symbol for
+    /// the variables added to the row.If the symbol for a given cell
+    /// variable is basic, the cell variable will be substituted with the
+    /// basic row.
+    /// </para>
+    /// <para>
+    /// The necessary slack and error variables will be added to the row.
+    /// If the constant for the row is negative, the sign for the row
+    /// will be inverted so the constant becomes positive.
+    /// </para>
+    /// <para>
+    /// The tag will be updated with the marker and error symbols to use
+    /// for tracking the movement of the constraint in the tableau.
+    /// </para>
+    /// </remarks>
     private void CreateRow(Constraint constraint, out Row row, out Tag tag)
     {
         row = new(constraint.Expression.Constant);
         Symbol marker;
         Symbol? other = null;
 
-        foreach (var term in constraint.Expression.Terms)
+        foreach (var term in constraint.Expression._Terms)
         {
             if (Util.IsNearZero(term.Coefficient))
                 continue;
@@ -360,8 +439,8 @@ public sealed class Solver
                     Symbol errorMinus = CreateSymbol(SymbolType.Error);
                     marker = errorPlus;
                     other = errorMinus;
-                    row.Insert(errorPlus, -1);
-                    row.Insert(errorMinus, 1);
+                    row.Insert(errorPlus, -1); // v = ePlus - eMinus
+                    row.Insert(errorMinus, 1); // v - ePlus + eMinus = 0
                     this.Objective.Insert(errorPlus, constraint.Strength);
                     this.Objective.Insert(errorMinus, constraint.Strength);
                 }
@@ -376,11 +455,29 @@ public sealed class Solver
                 throw new ArgumentException($"Unhandled `RelationalOperator` {constraint.Operator}");
         }
 
+        // Ensure the row as a positive constant.
         if (row.Constant < 0)
             row.ReverseSign();
+
         tag = new(marker, other);
     }
 
+    /// <summary>Choose the subject for solving for the row.</summary>
+    /// <remarks>
+    /// <para>
+    /// This method will choose the best subject for using as the solve
+    /// target for the row.An invalid symbol will be returned if there
+    /// is no valid target.
+    /// </para>
+    /// <para>
+    /// The symbols are chosen according to the following precedence:
+    /// <list type="number">
+    /// <item>The first symbol representing an external variable.</item>
+    /// <item>A negative slack or error tag variable.</item>
+    /// </list>
+    /// If a subject cannot be found, an invalid symbol will be returned.
+    /// </para>
+    /// </remarks>
     private static Symbol? ChooseSubject(Row row, ref Tag tag)
     {
         foreach (var symbol in row.Cells.Keys)
@@ -395,15 +492,24 @@ public sealed class Solver
         return null;
     }
 
+    /// <summary>Add the row to the tableau using an artificial variable.</summary>
+    /// <remarks>This will return false if the constraint cannot be satisfied.</remarks>
     private bool AddWithArtificialVariable(Row row)
     {
+        // Create and add the artificial variable to the tableau
         Symbol artificial = CreateSymbol(SymbolType.Slack);
         this.Rows[artificial] = new(row);
         this.Artificial = new(row);
 
+        // Optimize the artificial objective. This is successful
+        // only if the artificial objective is optimized to zero.
         Optimize(this.Artificial);
+
         bool success = Util.IsNearZero(this.Artificial.Constant);
         this.Artificial = null;
+
+        // If the artificial variable is basic, pivot the row so that
+        // it becomes basic. If the row is constant, exit early.
 
         if (this.Rows.TryGetValue(artificial, out var rowPointer))
         {
@@ -412,19 +518,26 @@ public sealed class Solver
                 return success;
 
             if (rowPointer.GetAnyPivotableSymbol() is not { } entering)
-                return false;
+                return false; // unsatisfiable (will this ever happen?)
 
             rowPointer.SolveForSymbols(artificial, entering);
             Substitute(entering, rowPointer);
             this.Rows[entering] = rowPointer;
         }
 
+        // Remove the artificial variable from the tableau.
         foreach (var existingRow in this.Rows.Values)
             existingRow.Remove(artificial);
+
         this.Objective.Remove(artificial);
         return success;
     }
 
+    /// <summary>Substitute the parametric symbol with the given row.</summary>
+    /// <remarks>
+    /// This method will substitute all instances of the parametric symbol
+    /// in the tableau and the objective function with the given row.
+    /// </remarks>
     private void Substitute(Symbol symbol, Row row)
     {
         foreach (var (existingSymbol, existingRow) in this.Rows)
@@ -438,6 +551,11 @@ public sealed class Solver
         this.Artificial?.Substitute(symbol, row);
     }
 
+    /// <summary>Optimize the system for the given objective function.</summary>
+    /// <remarks>
+    /// This method performs iterations of Phase 2 of the simplex method
+    /// until the objective function reaches a minimum.
+    /// </remarks>
     private void Optimize(Row objective)
     {
         while (true)
@@ -492,6 +610,16 @@ public sealed class Solver
         return entering;
     }
 
+    /// <summary>Compute the row which holds the exit symbol for a pivot.</summary>
+    /// <remarks>
+    /// <para>This documentation is copied from the C++ version and is outdated.</para>
+    /// <para>
+    /// This method will return an iterator to the row in the row map
+    /// which holds the exit symbol. If no appropriate exit symbol is
+    /// found, `nil` will be returned. This indicates that
+    /// the objective function is unbounded.
+    /// </para>
+    /// </remarks>
     private (Symbol, Row)? GetLeavingRow(Symbol entering)
     {
         double ratio = double.MaxValue;

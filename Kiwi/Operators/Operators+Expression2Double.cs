@@ -4,24 +4,52 @@ namespace Nanoray.Kiwi;
 
 public readonly partial struct Expression
 {
-    public static Expression operator +(Expression expression, double constant)
-        => new(expression.Terms, expression.Constant + constant);
+    /// <summary>Sums two expression values together.</summary>
+    /// <param name="lhs">The left side of the expression.</param>
+    /// <param name="rhs">The right side of the expression</param>
+    /// <returns>The summed expression.</returns>
+    public static Expression operator +(Expression lhs, double rhs)
+        => new(lhs._Terms, lhs.Constant + rhs);
 
-    public static Expression operator +(double constant, Expression expression)
-        => expression + constant;
+    /// <summary>Sums two expression values together.</summary>
+    /// <param name="lhs">The left side of the expression.</param>
+    /// <param name="rhs">The right side of the expression</param>
+    /// <returns>The summed expression.</returns>
+    public static Expression operator +(double lhs, Expression rhs)
+        => rhs + lhs;
 
-    public static Expression operator -(Expression expression, double constant)
-        => expression + -constant;
+    /// <summary>Subtracts two expression values together.</summary>
+    /// <param name="lhs">The left side of the expression.</param>
+    /// <param name="rhs">The right side of the expression</param>
+    /// <returns>The subtracted expression.</returns>
+    public static Expression operator -(Expression lhs, double rhs)
+        => lhs + -rhs;
 
-    public static Expression operator -(double constant, Expression expression)
-        => constant + -expression;
+    /// <summary>Subtracts two expression values together.</summary>
+    /// <param name="lhs">The left side of the expression.</param>
+    /// <param name="rhs">The right side of the expression</param>
+    /// <returns>The subtracted expression.</returns>
+    public static Expression operator -(double lhs, Expression rhs)
+        => lhs + -rhs;
 
-    public static Expression operator *(Expression expression, double coefficient)
-        => new(expression.Terms.Select(t => t * coefficient).ToArray(), expression.Constant * coefficient);
+    /// <summary>Multiplies two expression values together.</summary>
+    /// <param name="lhs">The left side of the expression.</param>
+    /// <param name="rhs">The right side of the expression</param>
+    /// <returns>The multiplied expression.</returns>
+    public static Expression operator *(Expression lhs, double rhs)
+        => new(lhs._Terms.Select(t => t * rhs).ToArray(), lhs.Constant * rhs);
 
-    public static Expression operator *(double coefficient, Expression expression)
-        => expression / coefficient;
+    /// <summary>Multiplies two expression values together.</summary>
+    /// <param name="lhs">The left side of the expression.</param>
+    /// <param name="rhs">The right side of the expression</param>
+    /// <returns>The multiplied expression.</returns>
+    public static Expression operator *(double lhs, Expression rhs)
+        => rhs / lhs;
 
-    public static Expression operator /(Expression expression, double denominator)
-        => new(expression.Terms.Select(t => t / denominator).ToArray(), expression.Constant / denominator);
+    /// <summary>Divides two expression values together.</summary>
+    /// <param name="lhs">The left side of the expression.</param>
+    /// <param name="rhs">The right side of the expression</param>
+    /// <returns>The divides expression.</returns>
+    public static Expression operator /(Expression lhs, double rhs)
+        => new(lhs._Terms.Select(t => t / rhs).ToArray(), lhs.Constant / rhs);
 }
