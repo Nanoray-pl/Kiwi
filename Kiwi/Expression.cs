@@ -67,10 +67,17 @@ public readonly partial struct Expression : IEquatable<Expression>
     /// <inheritdoc/>
     public override int GetHashCode()
     {
-        int hash = BitConverter.SingleToInt32Bits((float)this.Constant);
-        foreach (var term in this._Terms)
-            hash += term.GetHashCode();
-        return hash;
+        var coefficients = GetVariableCoefficients();
+        var hash = new HashCode();
+        hash.Add(this.Constant);
+
+        foreach (var pair in coefficients.OrderBy(p => p.Key.GetHashCode()).ThenBy(p => p.Value))
+        {
+            hash.Add(pair.Key);
+            hash.Add(pair.Value);
+        }
+
+        return hash.ToHashCode();
     }
 
     /// <summary>The equality operator <c>==</c> returns <c>true</c> if its operands are equal, <c>false</c> otherwise.</summary>

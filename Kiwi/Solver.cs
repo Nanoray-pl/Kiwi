@@ -76,7 +76,7 @@ public sealed class Solver
 
         if (oldAutoSolve)
         {
-            _AutoSolve = true;
+            AutoSolve = true;
             UpdateVariables();
         }
         else
@@ -103,9 +103,22 @@ public sealed class Solver
 
     private void FlushUnusedVariables()
     {
+        if (Variables.Count == 0)
+            return;
+
+        List<Variable>? toRemove = null;
         foreach (var info in Variables.Values)
-            if (info.ReferenceCount <= 0)
-                Variables.Remove(info.Variable);
+        {
+            if (info.ReferenceCount > 0)
+                continue;
+            (toRemove ??= new()).Add(info.Variable);
+        }
+
+        if (toRemove is null)
+            return;
+
+        foreach (var variable in toRemove)
+            Variables.Remove(variable);
     }
 
     /// <summary>Add a constraint to the solver system.</summary>
@@ -128,18 +141,33 @@ public sealed class Solver
         if (Constraints.ContainsKey(constraint))
             return null;
 
-        CreateRow(constraint, out var row, out var tag);
-
-        if (GetSubject(constraint, row, ref tag) is { } subject)
+        try
         {
-            row.SolveForSymbol(subject);
-            Substitute(subject, row);
-            this.Rows[subject] = row;
-        }
+            CreateRow(constraint, out var row, out var tag);
 
-        this.Constraints[constraint] = tag;
-        Optimize(this.Objective);
-        return tag;
+            if (GetSubject(constraint, row, ref tag) is { } subject)
+            {
+                row.SolveForSymbol(subject);
+                Substitute(subject, row);
+                this.Rows[subject] = row;
+            }
+
+            this.Constraints[constraint] = tag;
+            Optimize(this.Objective);
+            return tag;
+        }
+        catch
+        {
+            foreach (var term in constraint.Expression._Terms)
+            {
+                if (Util.IsNearZero(term.Coefficient))
+                    continue;
+                if (!this.Variables.TryGetValue(term.Variable, out var info))
+                    continue;
+                info.ReferenceCount--;
+            }
+            throw;
+        }
     }
 
     /// <summary>Remove a constraint from the solver system.</summary>
@@ -161,7 +189,7 @@ public sealed class Solver
 
         foreach (var term in constraint.Expression._Terms)
         {
-            if (!Util.IsNearZero(term.Coefficient))
+            if (Util.IsNearZero(term.Coefficient))
                 continue;
             if (!this.Variables.TryGetValue(term.Variable, out var info))
                 continue;
@@ -279,7 +307,7 @@ public sealed class Solver
             // Check next if the negative error variable is basic.
             if (variableInfo.Edit.Tag.Other is { } other && this.Rows.TryGetValue(other, out row))
             {
-                if (row.Add(-delta) < 0)
+                if (row.Add(delta) < 0)
                     this.InfeasibleRows.Add(other);
                 goto Finish;
             }
@@ -306,7 +334,7 @@ public sealed class Solver
 
         if (row.AreAllDummies())
         {
-            if (Util.IsNearZero(row.Constant))
+            if (!Util.IsNearZero(row.Constant))
                 throw new UnsatisfiableConstraintException(constraint);
             else
                 return tag.Marker;
@@ -321,7 +349,7 @@ public sealed class Solver
     {
         if (tag.Marker.Type == SymbolType.Error)
             RemoveMarkerEffects(tag.Marker, constraint.Strength);
-        else if (tag.Other is { } other && other.Type == SymbolType.Error)
+        if (tag.Other is { } other && other.Type == SymbolType.Error)
             RemoveMarkerEffects(other, constraint.Strength);
     }
 
@@ -577,7 +605,7 @@ public sealed class Solver
         {
             var leaving = this.InfeasibleRows[^1];
             this.InfeasibleRows.RemoveAt(this.InfeasibleRows.Count - 1);
-            if (!this.Rows.TryGetValue(leaving, out var row) || row.Constant < 0)
+            if (!this.Rows.TryGetValue(leaving, out var row) || row.Constant >= 0)
                 continue;
 
             var entering = GetDualEnteringSymbol(row) ?? throw new InternalSolverException();

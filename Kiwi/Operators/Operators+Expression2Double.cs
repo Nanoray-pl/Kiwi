@@ -44,7 +44,7 @@ public readonly partial struct Expression
     /// <param name="rhs">The right side of the expression</param>
     /// <returns>The multiplied expression.</returns>
     public static Expression operator *(double lhs, Expression rhs)
-        => rhs / lhs;
+        => rhs * lhs;
 
     /// <summary>Divides two expression values together.</summary>
     /// <param name="lhs">The left side of the expression.</param>
