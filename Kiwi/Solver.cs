@@ -187,6 +187,8 @@ public sealed class Solver
         if (!this.Constraints.TryGetValue(constraint, out var tag))
             return false;
 
+        this.Constraints.Remove(constraint);
+
         foreach (var term in constraint.Expression._Terms)
         {
             if (Util.IsNearZero(term.Coefficient))
