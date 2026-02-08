@@ -15,15 +15,15 @@ public sealed class SimplexTests
 
         Solver solver = new();
 
-        solver.AddConstraint(Constraint.Make(x1, RelationalOperator.GreaterThanOrEqual, 0.0));
-        solver.AddConstraint(Constraint.Make(x2, RelationalOperator.GreaterThanOrEqual, 0.0));
-        solver.AddConstraint(Constraint.Make(x3, RelationalOperator.GreaterThanOrEqual, 0.0));
+        solver.AddConstraint(Constraint.GreaterEqual(x1, 0.0));
+        solver.AddConstraint(Constraint.GreaterEqual(x2, 0.0));
+        solver.AddConstraint(Constraint.GreaterEqual(x3, 0.0));
 
-        solver.AddConstraint(Constraint.Make(2.0 * x1 - 5.0 * x2, RelationalOperator.LessThanOrEqual, 11.0));
-        solver.AddConstraint(Constraint.Make(-1.0 * x1 + 3.0 * x2 + x3, RelationalOperator.Equal, 7.0));
-        solver.AddConstraint(Constraint.Make(x1 - 8.0 * x2 + 4.0 * x3, RelationalOperator.GreaterThanOrEqual, 33.0));
+        solver.AddConstraint(Constraint.LessEqual(2.0 * x1 - 5.0 * x2, 11.0));
+        solver.AddConstraint(Constraint.Equal(-1.0 * x1 + 3.0 * x2 + x3, 7.0));
+        solver.AddConstraint(Constraint.GreaterEqual(x1 - 8.0 * x2 + 4.0 * x3, 33.0));
 
-        solver.AddConstraint(Constraint.Make(z, RelationalOperator.Equal, -2.0 * x1 + 7.0 * x2 + 4.0 * x3));
+        solver.AddConstraint(Constraint.Equal(z, -2.0 * x1 + 7.0 * x2 + 4.0 * x3));
         solver.AddEditVariable(z, Strength.Weak);
         solver.SuggestValue(z, 1e6);
 

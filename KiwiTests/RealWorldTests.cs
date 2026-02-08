@@ -160,10 +160,10 @@ public sealed class RealWorldTests
             switch (variableName)
             {
                 case Right:
-                    this.Solver.AddConstraint(Constraint.Make(variable, RelationalOperator.Equal, ObtainVariableFromNode(node, Left) + ObtainVariableFromNode(node, Width)));
+                    this.Solver.AddConstraint(Constraint.Equal(variable, ObtainVariableFromNode(node, Left) + ObtainVariableFromNode(node, Width)));
                     break;
                 case Bottom:
-                    this.Solver.AddConstraint(Constraint.Make(variable, RelationalOperator.Equal, ObtainVariableFromNode(node, Top) + ObtainVariableFromNode(node, Height)));
+                    this.Solver.AddConstraint(Constraint.Equal(variable, ObtainVariableFromNode(node, Top) + ObtainVariableFromNode(node, Height)));
                     break;
             }
 

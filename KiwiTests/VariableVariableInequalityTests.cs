@@ -16,15 +16,15 @@ public sealed class VariableVariableInequalityTests
 
         solver.WithTransaction(solver =>
         {
-            solver.AddConstraint(Constraint.Make(y, RelationalOperator.Equal, 100));
-            solver.AddConstraint(Constraint.Make(x, RelationalOperator.LessThanOrEqual, y));
+            solver.AddConstraint(Constraint.Equal(y, 100));
+            solver.AddConstraint(Constraint.LessEqual(x, y));
         });
 
         Assert.That(x.Value <= 100);
 
         solver.WithTransaction(solver =>
         {
-            solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 90));
+            solver.AddConstraint(Constraint.Equal(x, 90));
         });
 
         Assert.AreEqual(90, x.Value, Epsilon);
@@ -39,8 +39,8 @@ public sealed class VariableVariableInequalityTests
 
         solver.WithTransaction(solver =>
         {
-            solver.AddConstraint(Constraint.Make(y, RelationalOperator.Equal, 100));
-            solver.AddConstraint(Constraint.Make(x, RelationalOperator.LessThanOrEqual, y));
+            solver.AddConstraint(Constraint.Equal(y, 100));
+            solver.AddConstraint(Constraint.LessEqual(x, y));
         });
 
         Assert.That(x.Value <= 100);
@@ -49,7 +49,7 @@ public sealed class VariableVariableInequalityTests
         {
             solver.WithTransaction(solver =>
             {
-                solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 110));
+                solver.AddConstraint(Constraint.Equal(x, 110));
             });
         });
     }
@@ -63,15 +63,15 @@ public sealed class VariableVariableInequalityTests
 
         solver.WithTransaction(solver =>
         {
-            solver.AddConstraint(Constraint.Make(y, RelationalOperator.Equal, 100));
-            solver.AddConstraint(Constraint.Make(x, RelationalOperator.GreaterThanOrEqual, y));
+            solver.AddConstraint(Constraint.Equal(y, 100));
+            solver.AddConstraint(Constraint.GreaterEqual(x, y));
         });
 
         Assert.That(x.Value >= 100);
 
         solver.WithTransaction(solver =>
         {
-            solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 110));
+            solver.AddConstraint(Constraint.Equal(x, 110));
         });
 
         Assert.AreEqual(110, x.Value, Epsilon);
@@ -86,8 +86,8 @@ public sealed class VariableVariableInequalityTests
 
         solver.WithTransaction(solver =>
         {
-            solver.AddConstraint(Constraint.Make(y, RelationalOperator.Equal, 100));
-            solver.AddConstraint(Constraint.Make(x, RelationalOperator.GreaterThanOrEqual, y));
+            solver.AddConstraint(Constraint.Equal(y, 100));
+            solver.AddConstraint(Constraint.GreaterEqual(x, y));
         });
 
         Assert.That(x.Value >= 100);
@@ -96,7 +96,7 @@ public sealed class VariableVariableInequalityTests
         {
             solver.WithTransaction(solver =>
             {
-                solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 90));
+                solver.AddConstraint(Constraint.Equal(x, 90));
             });
         });
     }

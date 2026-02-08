@@ -94,6 +94,15 @@ public readonly partial struct Expression : IEquatable<Expression>
     public static bool operator !=(Expression left, Expression right)
         => !(left == right);
 
+    /// <summary>Implicitly converts a <see cref="Term"/> to an <see cref="Expression"/>.</summary>
+    public static implicit operator Expression(Term term) => new(term);
+
+    /// <summary>Implicitly converts a <see cref="Variable"/> to an <see cref="Expression"/>.</summary>
+    public static implicit operator Expression(Variable variable) => new(new Term(variable));
+
+    /// <summary>Implicitly converts a <see cref="double"/> to a constant <see cref="Expression"/>.</summary>
+    public static implicit operator Expression(double constant) => new(constant);
+
     private Dictionary<Variable, double> GetVariableCoefficients()
     {
         Dictionary<Variable, double> coefficients = new();

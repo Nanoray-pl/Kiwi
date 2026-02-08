@@ -42,9 +42,9 @@ public sealed class RegressionTests
         // Set x = 10, then y = 2 * x (using double * Variable, which goes through double * Expression)
         solver.WithTransaction(s =>
         {
-            s.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 10.0));
+            s.AddConstraint(Constraint.Equal(x, 10.0));
             // 2.0 * x uses: double * Variable → double * Term → double * Expression
-            s.AddConstraint(Constraint.Make(y, RelationalOperator.Equal, 2.0 * x));
+            s.AddConstraint(Constraint.Equal(y, 2.0 * x));
         });
 
         Assert.AreEqual(10.0, x.Value, Epsilon);
@@ -78,10 +78,10 @@ public sealed class RegressionTests
         Variable x = new("x");
 
         // x >= 10 (required)
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.GreaterThanOrEqual, 10.0));
+        solver.AddConstraint(Constraint.GreaterEqual(x, 10.0));
 
         // x == 50 (weak — should be satisfied when possible)
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 50.0, Strength.Weak));
+        solver.AddConstraint(Constraint.Equal(x, 50.0, Strength.Weak));
 
         solver.Solve();
 
@@ -89,7 +89,7 @@ public sealed class RegressionTests
         Assert.AreEqual(50.0, x.Value, Epsilon);
 
         // Now add a stronger constraint pulling x towards 5, but x >= 10 must hold
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 5.0, Strength.Strong));
+        solver.AddConstraint(Constraint.Equal(x, 5.0, Strength.Strong));
         solver.Solve();
 
         // x should be 10 (x >= 10 is required, strong constraint wants 5 but can't go below 10)
@@ -105,8 +105,8 @@ public sealed class RegressionTests
         Variable x = new("x");
 
         // Bounds: 0 <= x <= 100
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.GreaterThanOrEqual, 0.0));
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.LessThanOrEqual, 100.0));
+        solver.AddConstraint(Constraint.GreaterEqual(x, 0.0));
+        solver.AddConstraint(Constraint.LessEqual(x, 100.0));
 
         solver.AddEditVariable(x, Strength.Strong);
 
@@ -142,12 +142,12 @@ public sealed class RegressionTests
         // x + y == 10, x == 6, y == 4 → all consistent
         // The third constraint is algebraically redundant once the first two are added.
         // After substitution, the row will be all dummies with constant ≈ 0.
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 6.0));
-        solver.AddConstraint(Constraint.Make(y, RelationalOperator.Equal, 4.0));
+        solver.AddConstraint(Constraint.Equal(x, 6.0));
+        solver.AddConstraint(Constraint.Equal(y, 4.0));
 
         Assert.DoesNotThrow(() =>
         {
-            solver.AddConstraint(Constraint.Make(x + y, RelationalOperator.Equal, 10.0));
+            solver.AddConstraint(Constraint.Equal(x + y, 10.0));
         }, "Redundant but satisfiable required constraint should not throw");
 
         solver.Solve();
@@ -166,12 +166,12 @@ public sealed class RegressionTests
 
         // x == 6, y == 4, x + y == 20 → inconsistent (6 + 4 ≠ 20)
         // After substitution, the row will be all dummies with constant ≈ 10 (non-zero).
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 6.0));
-        solver.AddConstraint(Constraint.Make(y, RelationalOperator.Equal, 4.0));
+        solver.AddConstraint(Constraint.Equal(x, 6.0));
+        solver.AddConstraint(Constraint.Equal(y, 4.0));
 
         Assert.Throws<UnsatisfiableConstraintException>(() =>
         {
-            solver.AddConstraint(Constraint.Make(x + y, RelationalOperator.Equal, 20.0));
+            solver.AddConstraint(Constraint.Equal(x + y, 20.0));
         }, "Conflicting required constraints should throw UnsatisfiableConstraintException");
     }
 
@@ -187,9 +187,9 @@ public sealed class RegressionTests
         Variable x = new("x");
 
         // Strong should dominate any combination of mediums.
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 0.0, Strength.Strong));
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 10.0, Strength.Medium));
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 20.0, Strength.Medium));
+        solver.AddConstraint(Constraint.Equal(x, 0.0, Strength.Strong));
+        solver.AddConstraint(Constraint.Equal(x, 10.0, Strength.Medium));
+        solver.AddConstraint(Constraint.Equal(x, 20.0, Strength.Medium));
 
         solver.Solve();
 
@@ -208,8 +208,8 @@ public sealed class RegressionTests
         Variable x = new("x");
 
         solver.AutoSolve = true;
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.GreaterThanOrEqual, 0.0));
-        solver.AddConstraint(Constraint.Make(x, RelationalOperator.LessThanOrEqual, 100.0));
+        solver.AddConstraint(Constraint.GreaterEqual(x, 0.0));
+        solver.AddConstraint(Constraint.LessEqual(x, 100.0));
         solver.AddEditVariable(x, Strength.Strong);
 
         solver.WithTransaction(s =>
