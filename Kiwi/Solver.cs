@@ -140,33 +140,27 @@ public sealed class Solver
         if (Constraints.ContainsKey(constraint))
             return null;
 
-        try
-        {
-            CreateRow(constraint, out var row, out var tag);
+        CreateRow(constraint, out var row, out var tag, out var referencedVariables);
 
-            if (GetSubject(constraint, row, ref tag) is { } subject)
-            {
-                row.SolveForSymbol(subject);
-                Substitute(subject, row);
-                this.Rows[subject] = row;
-            }
-
-            this.Constraints[constraint] = tag;
-            Optimize(this.Objective);
-            return tag;
-        }
-        catch
+        if (GetSubject(constraint, row, ref tag) is { } subject)
         {
-            foreach (var term in constraint.Expression._Terms)
-            {
-                if (Util.IsNearZero(term.Coefficient))
-                    continue;
-                if (!this.Variables.TryGetValue(term.Variable, out var info))
-                    continue;
-                info.ReferenceCount--;
-            }
-            throw;
+            row.SolveForSymbol(subject);
+            Substitute(subject, row);
+            this.Rows[subject] = row;
         }
+
+        this.Constraints[constraint] = tag;
+
+        for (int i = 0; i < referencedVariables.Count; i++)
+        {
+            var variable = referencedVariables[i];
+            if (this.Variables.TryGetValue(variable, out var info))
+                info.ReferenceCount++;
+        }
+
+        Optimize(this.Objective);
+
+        return tag;
     }
 
     /// <summary>Remove a constraint from the solver system.</summary>
@@ -422,11 +416,12 @@ public sealed class Solver
     /// for tracking the movement of the constraint in the tableau.
     /// </para>
     /// </remarks>
-    private void CreateRow(Constraint constraint, out Row row, out Tag tag)
+    private void CreateRow(Constraint constraint, out Row row, out Tag tag, out List<Variable> referencedVariables)
     {
         row = new(constraint.Expression.Constant);
         Symbol marker;
         Symbol? other = null;
+        referencedVariables = new();
 
         foreach (var term in constraint.Expression._Terms)
         {
@@ -434,7 +429,7 @@ public sealed class Solver
                 continue;
 
             var info = ObtainInfo(term.Variable);
-            info.ReferenceCount += 1;
+            referencedVariables.Add(term.Variable);
 
             if (this.Rows.TryGetValue(info.Symbol, out var otherRow))
                 row.Insert(otherRow, term.Coefficient);
