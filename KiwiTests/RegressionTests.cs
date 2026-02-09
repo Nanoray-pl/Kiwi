@@ -1,7 +1,7 @@
 using Nanoray.Kiwi;
 using NUnit.Framework;
 
-namespace KiwiTests;
+namespace Kiwi.Tests;
 
 /// <summary>
 /// Regression tests for issues found by comparing the C# port against the
@@ -23,7 +23,7 @@ public sealed class RegressionTests
         Expression expr = new(new Term(x), 10.0); // x + 10
 
         // 2.0 * (x + 10) should equal (2x + 20), not ((x + 10) / 2) = (0.5x + 5)
-        Expression result = 2.0 * expr;
+        var result = 2.0 * expr;
 
         // The result should have coefficient 2.0 on x and constant 20.0
         Assert.AreEqual(1, result.Terms.Count, "Should have exactly one term");
@@ -235,8 +235,10 @@ public sealed class RegressionTests
 
         Assert.AreEqual(expr1, expr2, "Expressions with the same coefficients should be equal");
 
-        var dict = new System.Collections.Generic.Dictionary<Expression, string>();
-        dict[expr1] = "value";
+        var dict = new Dictionary<Expression, string>
+        {
+            [expr1] = "value"
+        };
 
         Assert.IsTrue(dict.ContainsKey(expr2),
             "Hash code should be consistent with equality so dictionaries can find equal expressions");

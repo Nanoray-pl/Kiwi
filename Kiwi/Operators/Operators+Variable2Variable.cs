@@ -1,6 +1,6 @@
 namespace Nanoray.Kiwi;
 
-public partial record struct Variable
+public readonly partial record struct Variable
 {
     /// <summary>Negates an expression value.</summary>
     /// <param name="value">The value to negate.</param>

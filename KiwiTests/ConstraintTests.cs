@@ -16,7 +16,7 @@ public sealed class ConstraintTests
         Assert.AreEqual(Strength.Required, c.Strength, Epsilon);
         Assert.AreEqual(RelationalOperator.Equal, c.Operator);
 
-        Expression expr = c.Expression;
+        var expr = c.Expression;
         Assert.AreEqual(1.0, expr.Constant, Epsilon);
         Assert.AreEqual(1, expr.Terms.Count);
         Assert.AreEqual(v, expr.Terms[0].Variable);

@@ -8,7 +8,7 @@ namespace Nanoray.Kiwi;
 public readonly partial struct Expression : IEquatable<Expression>
 {
     /// <summary>The terms, or in other words, variable components.</summary>
-    public readonly IReadOnlyList<Term> Terms
+    public IReadOnlyList<Term> Terms
         => this._Terms;
 
     /// <summary>The constant added to the result.</summary>
@@ -17,11 +17,11 @@ public readonly partial struct Expression : IEquatable<Expression>
     internal readonly Term[] _Terms;
 
     /// <summary>The sum of all variable components' values and the constant.</summary>
-    public readonly double Value
+    public double Value
         => _Terms.Sum(t => t.Value) + Constant;
 
     /// <summary>Whether the expression is constant, as in, it does not depend on any variables.</summary>
-    public readonly bool IsConstant
+    public bool IsConstant
         => this._Terms.Length == 0;
 
     internal Expression(Term[] terms, double constant = 0)
@@ -51,6 +51,7 @@ public readonly partial struct Expression : IEquatable<Expression>
     /// <inheritdoc/>
     public bool Equals(Expression other)
     {
+        // ReSharper disable once CompareOfFloatsByEqualityOperator
         if (this.Constant != other.Constant)
             return false;
 
@@ -58,8 +59,11 @@ public readonly partial struct Expression : IEquatable<Expression>
         var otherCoefficients = other.GetVariableCoefficients();
         if (thisCoefficients.Count != otherCoefficients.Count)
             return false;
-        if (thisCoefficients.Except(otherCoefficients).Any())
-            return false;
+
+        foreach (var thisCoefficient in thisCoefficients)
+            // ReSharper disable once CompareOfFloatsByEqualityOperator
+            if (!otherCoefficients.TryGetValue(thisCoefficient.Key, out double otherValue) || thisCoefficient.Value != otherValue)
+                return false;
 
         return true;
     }
@@ -95,13 +99,16 @@ public readonly partial struct Expression : IEquatable<Expression>
         => !(left == right);
 
     /// <summary>Implicitly converts a <see cref="Term"/> to an <see cref="Expression"/>.</summary>
-    public static implicit operator Expression(Term term) => new(term);
+    public static implicit operator Expression(Term term)
+        => new(term);
 
     /// <summary>Implicitly converts a <see cref="Variable"/> to an <see cref="Expression"/>.</summary>
-    public static implicit operator Expression(Variable variable) => new(new Term(variable));
+    public static implicit operator Expression(Variable variable)
+        => new(new Term(variable));
 
     /// <summary>Implicitly converts a <see cref="double"/> to a constant <see cref="Expression"/>.</summary>
-    public static implicit operator Expression(double constant) => new(constant);
+    public static implicit operator Expression(double constant)
+        => new(constant);
 
     private Dictionary<Variable, double> GetVariableCoefficients()
     {

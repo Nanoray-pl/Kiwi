@@ -16,13 +16,14 @@ public readonly struct Constraint : IEquatable<Constraint>
     public double Strength { get; init; }
 
     /// <summary>Whether the constraint is currently violated based on the expression's value.</summary>
-    public readonly bool Violated => Operator switch
-    {
-        RelationalOperator.Equal => !Util.IsNearZero(Expression.Value),
-        RelationalOperator.LessThanOrEqual => Expression.Value > 0.0 && !Util.IsNearZero(Expression.Value),
-        RelationalOperator.GreaterThanOrEqual => Expression.Value < 0.0 && !Util.IsNearZero(Expression.Value),
-        _ => throw new ArgumentOutOfRangeException()
-    };
+    public bool Violated
+        => Operator switch
+        {
+            RelationalOperator.Equal => !Util.IsNearZero(Expression.Value),
+            RelationalOperator.LessThanOrEqual => Expression.Value > 0.0 && !Util.IsNearZero(Expression.Value),
+            RelationalOperator.GreaterThanOrEqual => Expression.Value < 0.0 && !Util.IsNearZero(Expression.Value),
+            _ => throw new ArgumentOutOfRangeException()
+        };
 
     /// <summary>Create a constraint with the given expression.</summary>
     /// <param name="expression">The expression held by the constraint.</param>
@@ -41,11 +42,12 @@ public readonly struct Constraint : IEquatable<Constraint>
     public Constraint(Constraint other, double? strength = null) : this(other.Expression, other.Operator, strength) { }
 
     /// <inheritdoc/>
-    public override readonly bool Equals(object? obj)
+    public override bool Equals(object? obj)
         => obj is Constraint constraint && Equals(constraint);
 
     /// <inheritdoc/>
-    public readonly bool Equals(Constraint other)
+    public bool Equals(Constraint other)
+        // ReSharper disable once CompareOfFloatsByEqualityOperator
         => Expression == other.Expression && Operator == other.Operator && Strength == other.Strength;
 
     /// <summary>The equality operator <c>==</c> returns <c>true</c> if its operands are equal, <c>false</c> otherwise.</summary>
@@ -63,7 +65,7 @@ public readonly struct Constraint : IEquatable<Constraint>
         => !(left == right);
 
     /// <inheritdoc/>
-    public override readonly int GetHashCode()
+    public override int GetHashCode()
         => (Expression, Operator, Strength).GetHashCode();
 
     /// <summary>Creates an equality constraint: <paramref name="lhs"/> == <paramref name="rhs"/>.</summary>
@@ -232,8 +234,8 @@ public readonly struct Constraint : IEquatable<Constraint>
             variables[term.Variable] = variables.GetValueOrDefault(term.Variable) + term.Coefficient;
 
         int index = 0;
-        Term[] reducedTerms = new Term[variables.Count];
-        foreach (var (variable, value) in variables)
+        var reducedTerms = new Term[variables.Count];
+        foreach ((var variable, double value) in variables)
             reducedTerms[index++] = new Term(variable, value);
         return new(reducedTerms, expr.Constant);
     }
