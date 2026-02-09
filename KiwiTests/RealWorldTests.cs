@@ -15,8 +15,7 @@ public sealed class RealWorldTests
     private const string Height = "height";
     private const string Width = "width";
 
-    private static readonly string[] Constraints = new[]
-    {
+    private static readonly string[] Constraints = {
         "container.columnWidth == container.width * 0.4",
         "container.thumbHeight == container.columnWidth / 2",
         "container.padding == container.width * (0.2 / 3)",
@@ -117,8 +116,8 @@ public sealed class RealWorldTests
 
     private sealed class TestVariableResolver : ConstraintParser.ICassowaryVariableResolver
     {
-        private Solver Solver { get; init; }
-        private Dictionary<string, Dictionary<string, Variable>> Nodes { get; init; }
+        private readonly Solver Solver;
+        private readonly Dictionary<string, Dictionary<string, Variable>> Nodes;
 
         public TestVariableResolver(Solver solver, Dictionary<string, Dictionary<string, Variable>> nodes)
         {
@@ -160,10 +159,10 @@ public sealed class RealWorldTests
             switch (variableName)
             {
                 case Right:
-                    this.Solver.AddConstraint(Constraint.Make(variable, RelationalOperator.Equal, ObtainVariableFromNode(node, Left) + ObtainVariableFromNode(node, Width)));
+                    this.Solver.AddConstraint(Constraint.Equal(variable, ObtainVariableFromNode(node, Left) + ObtainVariableFromNode(node, Width)));
                     break;
                 case Bottom:
-                    this.Solver.AddConstraint(Constraint.Make(variable, RelationalOperator.Equal, ObtainVariableFromNode(node, Top) + ObtainVariableFromNode(node, Height)));
+                    this.Solver.AddConstraint(Constraint.Equal(variable, ObtainVariableFromNode(node, Top) + ObtainVariableFromNode(node, Height)));
                     break;
             }
 

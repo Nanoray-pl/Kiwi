@@ -15,7 +15,7 @@ public sealed class Tests
 
         solver.WithTransaction(solver =>
         {
-            solver.AddConstraint(Constraint.Make(x + 2.0, RelationalOperator.Equal, 20.0));
+            solver.AddConstraint(Constraint.Equal(x + 2.0, 20.0));
         });
 
         Assert.AreEqual(18.0, x.Value, Epsilon);
@@ -30,8 +30,8 @@ public sealed class Tests
 
         solver.WithTransaction(solver =>
         {
-            solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 20.0));
-            solver.AddConstraint(Constraint.Make(x + 2.0, RelationalOperator.Equal, y + 10.0));
+            solver.AddConstraint(Constraint.Equal(x, 20.0));
+            solver.AddConstraint(Constraint.Equal(x + 2.0, y + 10.0));
         });
 
         Assert.AreEqual(20.0, x.Value, Epsilon);
@@ -47,7 +47,7 @@ public sealed class Tests
 
         solver.WithTransaction(solver =>
         {
-            solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, y));
+            solver.AddConstraint(Constraint.Equal(x, y));
         });
 
         Assert.AreEqual(x.Value, y.Value, Epsilon);
@@ -62,10 +62,10 @@ public sealed class Tests
 
         solver.WithTransaction(solver =>
         {
-            solver.AddConstraint(Constraint.Make(x, RelationalOperator.LessThanOrEqual, y));
-            solver.AddConstraint(Constraint.Make(y, RelationalOperator.Equal, x + 3.0));
-            solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 10.0, Strength.Weak));
-            solver.AddConstraint(Constraint.Make(y, RelationalOperator.Equal, 10.0, Strength.Weak));
+            solver.AddConstraint(Constraint.LessEqual(x, y));
+            solver.AddConstraint(Constraint.Equal(y, x + 3.0));
+            solver.AddConstraint(Constraint.Equal(x, 10.0, Strength.Weak));
+            solver.AddConstraint(Constraint.Equal(y, 10.0, Strength.Weak));
         });
 
         if (Math.Abs(x.Value - 10) < Epsilon)

@@ -15,14 +15,14 @@ public sealed class ConstantVariableInequalityTests
 
         solver.WithTransaction(solver =>
         {
-            solver.AddConstraint(Constraint.Make(100, RelationalOperator.LessThanOrEqual, x));
+            solver.AddConstraint(Constraint.LessEqual(100, x));
         });
 
         Assert.That(100 <= x.Value);
 
         solver.WithTransaction(solver =>
         {
-            solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 110));
+            solver.AddConstraint(Constraint.Equal(x, 110));
         });
 
         Assert.AreEqual(110, x.Value, Epsilon);
@@ -36,7 +36,7 @@ public sealed class ConstantVariableInequalityTests
 
         solver.WithTransaction(solver =>
         {
-            solver.AddConstraint(Constraint.Make(100, RelationalOperator.LessThanOrEqual, x));
+            solver.AddConstraint(Constraint.LessEqual(100, x));
         });
 
         Assert.That(100 <= x.Value);
@@ -45,7 +45,7 @@ public sealed class ConstantVariableInequalityTests
         {
             solver.WithTransaction(solver =>
             {
-                solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 10));
+                solver.AddConstraint(Constraint.Equal(x, 10));
             });
         });
     }
@@ -58,14 +58,14 @@ public sealed class ConstantVariableInequalityTests
 
         solver.WithTransaction(solver =>
         {
-            solver.AddConstraint(Constraint.Make(100, RelationalOperator.GreaterThanOrEqual, x));
+            solver.AddConstraint(Constraint.GreaterEqual(100, x));
         });
 
         Assert.That(100 >= x.Value);
 
         solver.WithTransaction(solver =>
         {
-            solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 90));
+            solver.AddConstraint(Constraint.Equal(x, 90));
         });
 
         Assert.AreEqual(90, x.Value, Epsilon);
@@ -79,7 +79,7 @@ public sealed class ConstantVariableInequalityTests
 
         solver.WithTransaction(solver =>
         {
-            solver.AddConstraint(Constraint.Make(100, RelationalOperator.GreaterThanOrEqual, x));
+            solver.AddConstraint(Constraint.GreaterEqual(100, x));
         });
 
         Assert.That(100 >= x.Value);
@@ -88,7 +88,7 @@ public sealed class ConstantVariableInequalityTests
         {
             solver.WithTransaction(solver =>
             {
-                solver.AddConstraint(Constraint.Make(x, RelationalOperator.Equal, 110));
+                solver.AddConstraint(Constraint.Equal(x, 110));
             });
         });
     }

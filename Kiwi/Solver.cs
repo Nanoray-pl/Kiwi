@@ -1,22 +1,21 @@
 using System;
 using System.Collections.Generic;
-using System.Security.AccessControl;
 
 namespace Nanoray.Kiwi;
 
 /// <summary>Describes a linear equation/inequality constraint solver system.</summary>
 public sealed class Solver
 {
-    internal record struct Tag(
+    private record struct Tag(
         Symbol Marker,
         Symbol? Other
     );
 
     private sealed class EditInfo
     {
-        internal Tag Tag { get; init; }
-        internal Constraint Constraint { get; init; }
-        internal double Constant { get; set; }
+        internal readonly Tag Tag;
+        internal readonly Constraint Constraint;
+        internal double Constant;
 
         internal EditInfo(Tag tag, Constraint constraint, double constant)
         {
@@ -24,14 +23,14 @@ public sealed class Solver
             this.Constraint = constraint;
             this.Constant = constant;
         }
-    };
+    }
 
     private sealed class VariableInfo
     {
-        internal Variable Variable { get; init; }
-        internal Symbol Symbol { get; init; }
-        internal EditInfo? Edit { get; set; }
-        internal int ReferenceCount { get; set; }
+        internal readonly Variable Variable;
+        internal readonly Symbol Symbol;
+        internal EditInfo? Edit;
+        internal int ReferenceCount;
 
         internal VariableInfo(Variable variable, Symbol symbol, EditInfo? edit = null, int referenceCount = 0)
         {
@@ -54,15 +53,15 @@ public sealed class Solver
         }
     }
 
-    private int NextSymbolID { get; set; } = 0;
-    private Dictionary<Constraint, Tag> Constraints { get; set; } = new();
-    private OrderedDictionary<Symbol, Row> Rows { get; set; } = new();
-    private Dictionary<Variable, VariableInfo> Variables { get; set; } = new();
-    private List<Symbol> InfeasibleRows { get; set; } = new();
-    private Row Objective { get; set; } = new();
-    private Row? Artificial { get; set; }
+    private int NextSymbolID;
+    private readonly Dictionary<Constraint, Tag> Constraints = new();
+    private readonly OrderedDictionary<Symbol, Row> Rows = new();
+    private readonly Dictionary<Variable, VariableInfo> Variables = new();
+    private readonly List<Symbol> InfeasibleRows = new();
+    private readonly Row Objective = new();
+    private Row? Artificial;
 
-    private bool _AutoSolve = false;
+    private bool _AutoSolve;
 
     /// <summary>Starts a new solver system transaction.</summary>
     /// <remarks>The solver will not try to re-solve the equation system until the end of the provided closure.</remarks>
@@ -76,7 +75,7 @@ public sealed class Solver
 
         if (oldAutoSolve)
         {
-            _AutoSolve = true;
+            AutoSolve = true;
             UpdateVariables();
         }
         else
@@ -103,9 +102,22 @@ public sealed class Solver
 
     private void FlushUnusedVariables()
     {
+        if (Variables.Count == 0)
+            return;
+
+        List<Variable>? toRemove = null;
         foreach (var info in Variables.Values)
-            if (info.ReferenceCount <= 0)
-                Variables.Remove(info.Variable);
+        {
+            if (info.ReferenceCount > 0)
+                continue;
+            (toRemove ??= new()).Add(info.Variable);
+        }
+
+        if (toRemove is null)
+            return;
+
+        foreach (var variable in toRemove)
+            Variables.Remove(variable);
     }
 
     /// <summary>Add a constraint to the solver system.</summary>
@@ -128,7 +140,7 @@ public sealed class Solver
         if (Constraints.ContainsKey(constraint))
             return null;
 
-        CreateRow(constraint, out var row, out var tag);
+        CreateRow(constraint, out var row, out var tag, out var referencedVariables);
 
         if (GetSubject(constraint, row, ref tag) is { } subject)
         {
@@ -138,7 +150,16 @@ public sealed class Solver
         }
 
         this.Constraints[constraint] = tag;
+
+        for (int i = 0; i < referencedVariables.Count; i++)
+        {
+            var variable = referencedVariables[i];
+            if (this.Variables.TryGetValue(variable, out var info))
+                info.ReferenceCount++;
+        }
+
         Optimize(this.Objective);
+
         return tag;
     }
 
@@ -156,12 +177,12 @@ public sealed class Solver
     /// <returns><c>true</c> if the operation succeeded, <c>false</c> otherwise (if the constraint is not added to the solver system).</returns>
     public bool TryRemoveConstraint(Constraint constraint)
     {
-        if (!this.Constraints.TryGetValue(constraint, out var tag))
+        if (!this.Constraints.Remove(constraint, out var tag))
             return false;
 
         foreach (var term in constraint.Expression._Terms)
         {
-            if (!Util.IsNearZero(term.Coefficient))
+            if (Util.IsNearZero(term.Coefficient))
                 continue;
             if (!this.Variables.TryGetValue(term.Variable, out var info))
                 continue;
@@ -209,6 +230,7 @@ public sealed class Solver
             return false;
 
         strength = Strength.Clip(strength);
+        // ReSharper disable once CompareOfFloatsByEqualityOperator
         if (strength == Strength.Required)
             throw new ArgumentException("Strength cannot be Required");
 
@@ -279,7 +301,7 @@ public sealed class Solver
             // Check next if the negative error variable is basic.
             if (variableInfo.Edit.Tag.Other is { } other && this.Rows.TryGetValue(other, out row))
             {
-                if (row.Add(-delta) < 0)
+                if (row.Add(delta) < 0)
                     this.InfeasibleRows.Add(other);
                 goto Finish;
             }
@@ -307,21 +329,20 @@ public sealed class Solver
         if (row.AreAllDummies())
         {
             if (Util.IsNearZero(row.Constant))
-                throw new UnsatisfiableConstraintException(constraint);
-            else
                 return tag.Marker;
+            throw new UnsatisfiableConstraintException(constraint);
         }
 
-        if (!AddWithArtificialVariable(row))
-            throw new UnsatisfiableConstraintException(constraint);
-        return null;
+        if (AddWithArtificialVariable(row))
+            return null;
+        throw new UnsatisfiableConstraintException(constraint);
     }
 
     private void RemoveConstraintEffects(Constraint constraint, Tag tag)
     {
         if (tag.Marker.Type == SymbolType.Error)
             RemoveMarkerEffects(tag.Marker, constraint.Strength);
-        else if (tag.Other is { } other && other.Type == SymbolType.Error)
+        if (tag.Other is { } other && other.Type == SymbolType.Error)
             RemoveMarkerEffects(other, constraint.Strength);
     }
 
@@ -395,11 +416,12 @@ public sealed class Solver
     /// for tracking the movement of the constraint in the tableau.
     /// </para>
     /// </remarks>
-    private void CreateRow(Constraint constraint, out Row row, out Tag tag)
+    private void CreateRow(Constraint constraint, out Row row, out Tag tag, out List<Variable> referencedVariables)
     {
         row = new(constraint.Expression.Constant);
         Symbol marker;
         Symbol? other = null;
+        referencedVariables = new();
 
         foreach (var term in constraint.Expression._Terms)
         {
@@ -407,7 +429,7 @@ public sealed class Solver
                 continue;
 
             var info = ObtainInfo(term.Variable);
-            info.ReferenceCount += 1;
+            referencedVariables.Add(term.Variable);
 
             if (this.Rows.TryGetValue(info.Symbol, out var otherRow))
                 row.Insert(otherRow, term.Coefficient);
@@ -420,13 +442,13 @@ public sealed class Solver
             case RelationalOperator.LessThanOrEqual:
             case RelationalOperator.GreaterThanOrEqual:
                 double coefficient = constraint.Operator == RelationalOperator.LessThanOrEqual ? 1 : -1;
-                Symbol slack = CreateSymbol(SymbolType.Slack);
+                var slack = CreateSymbol(SymbolType.Slack);
                 marker = slack;
                 row.Insert(slack, coefficient);
 
                 if (constraint.Strength < Strength.Required)
                 {
-                    Symbol error = CreateSymbol(SymbolType.Error);
+                    var error = CreateSymbol(SymbolType.Error);
                     other = error;
                     row.Insert(error, -coefficient);
                     this.Objective.Insert(error, constraint.Strength);
@@ -435,8 +457,8 @@ public sealed class Solver
             case RelationalOperator.Equal:
                 if (constraint.Strength < Strength.Required)
                 {
-                    Symbol errorPlus = CreateSymbol(SymbolType.Error);
-                    Symbol errorMinus = CreateSymbol(SymbolType.Error);
+                    var errorPlus = CreateSymbol(SymbolType.Error);
+                    var errorMinus = CreateSymbol(SymbolType.Error);
                     marker = errorPlus;
                     other = errorMinus;
                     row.Insert(errorPlus, -1); // v = ePlus - eMinus
@@ -446,7 +468,7 @@ public sealed class Solver
                 }
                 else
                 {
-                    Symbol dummy = CreateSymbol(SymbolType.Dummy);
+                    var dummy = CreateSymbol(SymbolType.Dummy);
                     marker = dummy;
                     row.Insert(dummy);
                 }
@@ -497,7 +519,7 @@ public sealed class Solver
     private bool AddWithArtificialVariable(Row row)
     {
         // Create and add the artificial variable to the tableau
-        Symbol artificial = CreateSymbol(SymbolType.Slack);
+        var artificial = CreateSymbol(SymbolType.Slack);
         this.Rows[artificial] = new(row);
         this.Artificial = new(row);
 
@@ -577,7 +599,7 @@ public sealed class Solver
         {
             var leaving = this.InfeasibleRows[^1];
             this.InfeasibleRows.RemoveAt(this.InfeasibleRows.Count - 1);
-            if (!this.Rows.TryGetValue(leaving, out var row) || row.Constant < 0)
+            if (!this.Rows.TryGetValue(leaving, out var row) || row.Constant >= 0)
                 continue;
 
             var entering = GetDualEnteringSymbol(row) ?? throw new InternalSolverException();
@@ -593,7 +615,7 @@ public sealed class Solver
         Symbol? entering = null;
         double ratio = double.MaxValue;
 
-        foreach (var (symbol, value) in row.Cells)
+        foreach ((var symbol, double value) in row.Cells)
         {
             if (symbol.Type == SymbolType.Dummy || value <= 0)
                 continue;

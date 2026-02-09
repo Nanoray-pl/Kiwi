@@ -1,6 +1,6 @@
 namespace Nanoray.Kiwi;
 
-public partial record struct Variable
+public readonly partial record struct Variable
 {
     /// <summary>Sums two expression values together.</summary>
     /// <param name="lhs">The left side of the expression.</param>
