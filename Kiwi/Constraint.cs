@@ -87,6 +87,20 @@ public sealed class Constraint : IEquatable<Constraint>
     public override int GetHashCode()
         => this.Data.GetHashCode();
 
+    /// <summary>The equality operator <c>==</c> returns <c>true</c> if its operands are equal, <c>false</c> otherwise.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns><c>true</c> if its operands are equal, <c>false</c> otherwise.</returns>
+    public static bool operator ==(Constraint? left, Constraint? right)
+        => Equals(left, right);
+
+    /// <summary>The equality operator <c>!=</c> returns <c>false</c> if its operands are equal, <c>true</c> otherwise.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns><c>false</c> if its operands are equal, <c>true</c> otherwise.</returns>
+    public static bool operator !=(Constraint? left, Constraint? right)
+        => !Equals(left, right);
+
     /// <summary>Creates an equality constraint: <paramref name="lhs"/> == <paramref name="rhs"/>.</summary>
     /// <param name="lhs">The left-hand side of the equation.</param>
     /// <param name="rhs">The right-hand side of the equation.</param>
@@ -118,6 +132,132 @@ public sealed class Constraint : IEquatable<Constraint>
     /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
     /// <returns>A new constraint.</returns>
     public static Constraint Make(Expression lhs, RelationalOperator @operator, Expression rhs, double? strength = null)
+        => new(lhs - rhs, @operator, strength);
+
+    /// <summary>Creates a constraint representing an equation/inequality.</summary>
+    /// <param name="lhs">The left operand of an equation/inequality.</param>
+    /// <param name="operator">The operator of the constraint.</param>
+    /// <param name="rhs">The right operand of an equation/inequality.</param>
+    /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
+    /// <returns>A new constraint.</returns>
+    public static Constraint Make(Expression lhs, RelationalOperator @operator, Term rhs, double? strength = null)
+        => new(lhs - rhs, @operator, strength);
+
+    /// <summary>Creates a constraint representing an equation/inequality.</summary>
+    /// <param name="lhs">The left operand of an equation/inequality.</param>
+    /// <param name="operator">The operator of the constraint.</param>
+    /// <param name="rhs">The right operand of an equation/inequality.</param>
+    /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
+    /// <returns>A new constraint.</returns>
+    public static Constraint Make(Term lhs, RelationalOperator @operator, Expression rhs, double? strength = null)
+        => new(lhs - rhs, @operator, strength);
+
+    /// <summary>Creates a constraint representing an equation/inequality.</summary>
+    /// <param name="lhs">The left operand of an equation/inequality.</param>
+    /// <param name="operator">The operator of the constraint.</param>
+    /// <param name="rhs">The right operand of an equation/inequality.</param>
+    /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
+    /// <returns>A new constraint.</returns>
+    public static Constraint Make(Expression lhs, RelationalOperator @operator, Variable rhs, double? strength = null)
+        => new(lhs - rhs, @operator, strength);
+
+    /// <summary>Creates a constraint representing an equation/inequality.</summary>
+    /// <param name="lhs">The left operand of an equation/inequality.</param>
+    /// <param name="operator">The operator of the constraint.</param>
+    /// <param name="rhs">The right operand of an equation/inequality.</param>
+    /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
+    /// <returns>A new constraint.</returns>
+    public static Constraint Make(Variable lhs, RelationalOperator @operator, Expression rhs, double? strength = null)
+        => new(lhs - rhs, @operator, strength);
+
+    /// <summary>Creates a constraint representing an equation/inequality.</summary>
+    /// <param name="lhs">The left operand of an equation/inequality.</param>
+    /// <param name="operator">The operator of the constraint.</param>
+    /// <param name="rhs">The right operand of an equation/inequality.</param>
+    /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
+    /// <returns>A new constraint.</returns>
+    public static Constraint Make(Expression lhs, RelationalOperator @operator, double rhs, double? strength = null)
+        => new(lhs - rhs, @operator, strength);
+
+    /// <summary>Creates a constraint representing an equation/inequality.</summary>
+    /// <param name="lhs">The left operand of an equation/inequality.</param>
+    /// <param name="operator">The operator of the constraint.</param>
+    /// <param name="rhs">The right operand of an equation/inequality.</param>
+    /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
+    /// <returns>A new constraint.</returns>
+    public static Constraint Make(double lhs, RelationalOperator @operator, Expression rhs, double? strength = null)
+        => new(lhs - rhs, @operator, strength);
+
+    /// <summary>Creates a constraint representing an equation/inequality.</summary>
+    /// <param name="lhs">The left operand of an equation/inequality.</param>
+    /// <param name="operator">The operator of the constraint.</param>
+    /// <param name="rhs">The right operand of an equation/inequality.</param>
+    /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
+    /// <returns>A new constraint.</returns>
+    public static Constraint Make(Term lhs, RelationalOperator @operator, Term rhs, double? strength = null)
+        => new(lhs - rhs, @operator, strength);
+
+    /// <summary>Creates a constraint representing an equation/inequality.</summary>
+    /// <param name="lhs">The left operand of an equation/inequality.</param>
+    /// <param name="operator">The operator of the constraint.</param>
+    /// <param name="rhs">The right operand of an equation/inequality.</param>
+    /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
+    /// <returns>A new constraint.</returns>
+    public static Constraint Make(Term lhs, RelationalOperator @operator, Variable rhs, double? strength = null)
+        => new(lhs - rhs, @operator, strength);
+
+    /// <summary>Creates a constraint representing an equation/inequality.</summary>
+    /// <param name="lhs">The left operand of an equation/inequality.</param>
+    /// <param name="operator">The operator of the constraint.</param>
+    /// <param name="rhs">The right operand of an equation/inequality.</param>
+    /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
+    /// <returns>A new constraint.</returns>
+    public static Constraint Make(Variable lhs, RelationalOperator @operator, Term rhs, double? strength = null)
+        => new(lhs - rhs, @operator, strength);
+
+    /// <summary>Creates a constraint representing an equation/inequality.</summary>
+    /// <param name="lhs">The left operand of an equation/inequality.</param>
+    /// <param name="operator">The operator of the constraint.</param>
+    /// <param name="rhs">The right operand of an equation/inequality.</param>
+    /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
+    /// <returns>A new constraint.</returns>
+    public static Constraint Make(Term lhs, RelationalOperator @operator, double rhs, double? strength = null)
+        => new(lhs - rhs, @operator, strength);
+
+    /// <summary>Creates a constraint representing an equation/inequality.</summary>
+    /// <param name="lhs">The left operand of an equation/inequality.</param>
+    /// <param name="operator">The operator of the constraint.</param>
+    /// <param name="rhs">The right operand of an equation/inequality.</param>
+    /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
+    /// <returns>A new constraint.</returns>
+    public static Constraint Make(double lhs, RelationalOperator @operator, Term rhs, double? strength = null)
+        => new(lhs - rhs, @operator, strength);
+
+    /// <summary>Creates a constraint representing an equation/inequality.</summary>
+    /// <param name="lhs">The left operand of an equation/inequality.</param>
+    /// <param name="operator">The operator of the constraint.</param>
+    /// <param name="rhs">The right operand of an equation/inequality.</param>
+    /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
+    /// <returns>A new constraint.</returns>
+    public static Constraint Make(Variable lhs, RelationalOperator @operator, Variable rhs, double? strength = null)
+        => new(lhs - rhs, @operator, strength);
+
+    /// <summary>Creates a constraint representing an equation/inequality.</summary>
+    /// <param name="lhs">The left operand of an equation/inequality.</param>
+    /// <param name="operator">The operator of the constraint.</param>
+    /// <param name="rhs">The right operand of an equation/inequality.</param>
+    /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
+    /// <returns>A new constraint.</returns>
+    public static Constraint Make(Variable lhs, RelationalOperator @operator, double rhs, double? strength = null)
+        => new(lhs - rhs, @operator, strength);
+
+    /// <summary>Creates a constraint representing an equation/inequality.</summary>
+    /// <param name="lhs">The left operand of an equation/inequality.</param>
+    /// <param name="operator">The operator of the constraint.</param>
+    /// <param name="rhs">The right operand of an equation/inequality.</param>
+    /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
+    /// <returns>A new constraint.</returns>
+    public static Constraint Make(double lhs, RelationalOperator @operator, Variable rhs, double? strength = null)
         => new(lhs - rhs, @operator, strength);
 
     private static Expression Reduce(Expression expr)
