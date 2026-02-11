@@ -9,7 +9,7 @@ public readonly partial struct Expression : IEquatable<Expression>
 {
     /// <summary>The terms, or in other words, variable components.</summary>
     public IReadOnlyList<Term> Terms
-        => this._Terms;
+        => Array.AsReadOnly(this._Terms);
 
     /// <summary>The constant added to the result.</summary>
     public readonly double Constant;

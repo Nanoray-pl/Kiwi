@@ -11,10 +11,10 @@ public readonly partial struct Expression
     public static Expression operator -(Expression value)
         => new(value._Terms.Select(t => -t).ToArray(), -value.Constant);
 
-    /// <summary>Subtracts two expression values together.</summary>
+    /// <summary>Sums two expression values together.</summary>
     /// <param name="lhs">The left side of the expression.</param>
     /// <param name="rhs">The right side of the expression</param>
-    /// <returns>The subtracted expression.</returns>
+    /// <returns>The summed expression.</returns>
     public static Expression operator +(Expression lhs, Expression rhs)
     {
         Term[] terms = new Term[lhs._Terms.Length + rhs._Terms.Length];
@@ -23,10 +23,10 @@ public readonly partial struct Expression
         return new(terms, lhs.Constant + rhs.Constant);
     }
 
-    /// <summary>Sums two expression values together.</summary>
+    /// <summary>Subtracts two expression values.</summary>
     /// <param name="lhs">The left side of the expression.</param>
     /// <param name="rhs">The right side of the expression</param>
-    /// <returns>The summed expression.</returns>
+    /// <returns>The resulting expression.</returns>
     public static Expression operator -(Expression lhs, Expression rhs)
         => lhs + -rhs;
 

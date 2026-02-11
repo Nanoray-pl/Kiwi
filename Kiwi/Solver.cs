@@ -70,17 +70,24 @@ public sealed class Solver
     {
         bool oldAutoSolve = _AutoSolve;
         _AutoSolve = false;
-
-        closure(this);
-
-        if (oldAutoSolve)
+        try
         {
-            AutoSolve = true;
-            UpdateVariables();
+            closure(this);
+
+            if (oldAutoSolve)
+            {
+                _AutoSolve = true;
+                DualOptimize();
+                UpdateVariables();
+            }
+            else
+            {
+                Solve();
+            }
         }
-        else
+        finally
         {
-            Solve();
+            _AutoSolve = oldAutoSolve;
         }
     }
 
@@ -237,8 +244,10 @@ public sealed class Solver
         Term term = new(variable);
         Constraint constraint = new(new Expression(term), RelationalOperator.Equal, strength);
 
-        if (PrivateTryAddConstraint(constraint) is { } tag)
-            variableInfo.Edit = new(tag, constraint, 0);
+        var tag = PrivateTryAddConstraint(constraint);
+        if (tag is null)
+            return false;
+        variableInfo.Edit = new(tag.Value, constraint, 0);
         return true;
     }
 
@@ -599,7 +608,7 @@ public sealed class Solver
         {
             var leaving = this.InfeasibleRows[^1];
             this.InfeasibleRows.RemoveAt(this.InfeasibleRows.Count - 1);
-            if (!this.Rows.TryGetValue(leaving, out var row) || row.Constant >= 0)
+            if (!this.Rows.TryGetValue(leaving, out var row) || row.Constant >= 0 || Util.IsNearZero(row.Constant))
                 continue;
 
             var entering = GetDualEnteringSymbol(row) ?? throw new InternalSolverException();
