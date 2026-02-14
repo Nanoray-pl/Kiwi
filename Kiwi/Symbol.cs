@@ -2,7 +2,7 @@ using System;
 
 namespace Nanoray.Kiwi;
 
-internal readonly struct Symbol : IEquatable<Symbol>
+internal readonly struct Symbol : IEquatable<Symbol>, IComparable<Symbol>
 {
     internal readonly int ID;
     internal readonly SymbolType Type;
@@ -21,6 +21,9 @@ internal readonly struct Symbol : IEquatable<Symbol>
 
     public override int GetHashCode()
         => ID;
+
+    public int CompareTo(Symbol other)
+        => ID.CompareTo(other.ID);
 
     public override string ToString()
         => $"{{#{ID} {Type}}}";

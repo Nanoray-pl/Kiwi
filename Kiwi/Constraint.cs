@@ -4,6 +4,15 @@ using System.Collections.Generic;
 namespace Nanoray.Kiwi;
 
 /// <summary>Describes a constraint placed on a number of variables in the solver system.</summary>
+/// <remarks>
+/// <para>
+/// Constraint identity is handle-based: equality compares the internal shared constraint data instance,
+/// not structural expression/operator/strength value equality.
+/// </para>
+/// <para>
+/// As a consequence, two separately constructed but value-equivalent constraints are not equal.
+/// </para>
+/// </remarks>
 public sealed class Constraint : IEquatable<Constraint>
 {
     private sealed class ConstraintData
@@ -35,6 +44,10 @@ public sealed class Constraint : IEquatable<Constraint>
         => this.Data.Strength;
 
     /// <summary>Whether the constraint is currently violated based on the expression's value.</summary>
+    /// <remarks>
+    /// For inequality operators, this uses a near-zero tolerance (via <see cref="Util.IsNearZero(double)"/>)
+    /// to treat tiny floating-point residuals as non-violations.
+    /// </remarks>
     public bool Violated
         => Operator switch
         {
@@ -75,7 +88,7 @@ public sealed class Constraint : IEquatable<Constraint>
         );
     }
 
-    /// <inheritdoc/>
+    /// <summary>Returns <c>true</c> when both constraints reference the same internal constraint data instance.</summary>
     public bool Equals(Constraint? other)
         => other is not null && ReferenceEquals(this.Data, other.Data);
 

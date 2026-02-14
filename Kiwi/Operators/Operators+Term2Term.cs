@@ -15,7 +15,7 @@ public partial record struct Term
     public static Expression operator +(Term lhs, Term rhs)
         => new(new Term[] { lhs, rhs });
 
-    /// <summary>Subtracts two expression values together.</summary>
+    /// <summary>Subtracts the right expression value from the left expression value.</summary>
     /// <param name="lhs">The left side of the expression.</param>
     /// <param name="rhs">The right side of the expression</param>
     /// <returns>The subtracted expression.</returns>

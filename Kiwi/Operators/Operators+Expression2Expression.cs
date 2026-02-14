@@ -45,10 +45,10 @@ public readonly partial struct Expression
             throw new NonLinearExpressionException();
     }
 
-    /// <summary>Divides two expression values together.</summary>
+    /// <summary>Divides the left expression value by the right expression value.</summary>
     /// <param name="lhs">The left side of the expression.</param>
     /// <param name="rhs">The right side of the expression</param>
-    /// <returns>The divides expression.</returns>
+    /// <returns>The divided expression.</returns>
     public static Expression operator /(Expression lhs, Expression rhs)
     {
         if (rhs.IsConstant)

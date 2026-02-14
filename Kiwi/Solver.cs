@@ -55,7 +55,7 @@ public sealed class Solver
 
     private int NextSymbolID;
     private readonly Dictionary<Constraint, Tag> Constraints = new();
-    private readonly OrderedDictionary<Symbol, Row> Rows = new();
+    private readonly SortedList<Symbol, Row> Rows = new();
     private readonly Dictionary<Variable, VariableInfo> Variables = new();
     private readonly List<Symbol> InfeasibleRows = new();
     private readonly Row Objective = new();
