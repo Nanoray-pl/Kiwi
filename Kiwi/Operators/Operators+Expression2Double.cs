@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Linq;
 
 namespace Nanoray.Kiwi;
@@ -37,7 +38,7 @@ public readonly partial struct Expression
     /// <param name="rhs">The right side of the expression</param>
     /// <returns>The multiplied expression.</returns>
     public static Expression operator *(Expression lhs, double rhs)
-        => new(lhs._Terms.Select(t => t * rhs).ToArray(), lhs.Constant * rhs);
+        => new(lhs._Terms.Select(t => t * rhs).ToImmutableArray(), lhs.Constant * rhs);
 
     /// <summary>Multiplies two expression values together.</summary>
     /// <param name="lhs">The left side of the expression.</param>
@@ -51,5 +52,5 @@ public readonly partial struct Expression
     /// <param name="rhs">The right side of the expression</param>
     /// <returns>The divides expression.</returns>
     public static Expression operator /(Expression lhs, double rhs)
-        => new(lhs._Terms.Select(t => t / rhs).ToArray(), lhs.Constant / rhs);
+        => new(lhs._Terms.Select(t => t / rhs).ToImmutableArray(), lhs.Constant / rhs);
 }

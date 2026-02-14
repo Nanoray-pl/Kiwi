@@ -64,7 +64,7 @@ public sealed class Solver
     private bool _AutoSolve;
 
     /// <summary>Starts a new solver system transaction.</summary>
-    /// <remarks>The solver will not try to re-solve the equation system until the end of the provided closure.</remarks>
+    /// <remarks>When <see cref="AutoSolve"/> is enabled, automatic variable updates are deferred until the end of the provided closure.</remarks>
     /// <param name="closure">The actions to execute on the solver, before trying to re-solve the equation system.</param>
     public void WithTransaction(Action<Solver> closure)
     {

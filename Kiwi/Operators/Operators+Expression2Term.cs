@@ -11,7 +11,7 @@ public readonly partial struct Expression
     public static Expression operator +(Expression lhs, Term rhs)
     {
         Term[] terms = new Term[lhs._Terms.Length + 1];
-        Array.Copy(lhs._Terms, terms, lhs._Terms.Length);
+        lhs._Terms.CopyTo(terms);
         terms[^1] = rhs;
         return new(terms, lhs.Constant);
     }

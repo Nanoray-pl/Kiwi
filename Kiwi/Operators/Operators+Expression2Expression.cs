@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using System.Linq;
 
 namespace Nanoray.Kiwi;
@@ -9,7 +10,7 @@ public readonly partial struct Expression
     /// <param name="value">The value to negate.</param>
     /// <returns>The negated value.</returns>
     public static Expression operator -(Expression value)
-        => new(value._Terms.Select(t => -t).ToArray(), -value.Constant);
+        => new(value._Terms.Select(t => -t).ToImmutableArray(), -value.Constant);
 
     /// <summary>Sums two expression values together.</summary>
     /// <param name="lhs">The left side of the expression.</param>
@@ -18,8 +19,8 @@ public readonly partial struct Expression
     public static Expression operator +(Expression lhs, Expression rhs)
     {
         Term[] terms = new Term[lhs._Terms.Length + rhs._Terms.Length];
-        Array.Copy(lhs._Terms, 0, terms, 0, lhs._Terms.Length);
-        Array.Copy(rhs._Terms, 0, terms, lhs._Terms.Length, rhs._Terms.Length);
+        lhs._Terms.CopyTo(terms, 0);
+        rhs._Terms.CopyTo(terms, lhs._Terms.Length);
         return new(terms, lhs.Constant + rhs.Constant);
     }
 
