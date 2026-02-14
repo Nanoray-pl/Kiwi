@@ -11,11 +11,11 @@ namespace Kiwi.Benchmarks
     {
         private static readonly Size[] Sizes = new[]
         {
-            new Size(400, 600),
-            new Size(600, 400),
-            new Size(800, 1200),
-            new Size(1200, 800),
-            new Size(400, 800),
+            //new Size(400, 600),
+            //new Size(600, 400),
+            //new Size(800, 1200),
+            //new Size(1200, 800),
+            //new Size(400, 800),
             new Size(800, 400)
         };
 

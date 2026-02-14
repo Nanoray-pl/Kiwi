@@ -17,6 +17,7 @@ public sealed class VariableConstantInequalityTests
         {
             solver.AddConstraint(Constraint.LessEqual(x, 100));
         });
+        solver.Solve();
 
         Assert.That(x.Value <= 100);
 
@@ -24,6 +25,7 @@ public sealed class VariableConstantInequalityTests
         {
             solver.AddConstraint(Constraint.Equal(x, 90));
         });
+        solver.Solve();
 
         Assert.AreEqual(90, x.Value, Epsilon);
     }
@@ -38,6 +40,7 @@ public sealed class VariableConstantInequalityTests
         {
             solver.AddConstraint(Constraint.LessEqual(x, 100));
         });
+        solver.Solve();
 
         Assert.That(x.Value <= 100);
 
@@ -60,6 +63,7 @@ public sealed class VariableConstantInequalityTests
         {
             solver.AddConstraint(Constraint.GreaterEqual(x, 100));
         });
+        solver.Solve();
 
         Assert.That(x.Value >= 100);
 
@@ -67,6 +71,7 @@ public sealed class VariableConstantInequalityTests
         {
             solver.AddConstraint(Constraint.Equal(x, 110));
         });
+        solver.Solve();
 
         Assert.AreEqual(110, x.Value, Epsilon);
     }
@@ -81,6 +86,7 @@ public sealed class VariableConstantInequalityTests
         {
             solver.AddConstraint(Constraint.GreaterEqual(x, 100));
         });
+        solver.Solve();
 
         Assert.That(x.Value >= 100);
 

@@ -46,6 +46,7 @@ public sealed class RegressionTests
             // 2.0 * x uses: double * Variable → double * Term → double * Expression
             s.AddConstraint(Constraint.Equal(y, 2.0 * x));
         });
+        solver.Solve();
 
         Assert.AreEqual(10.0, x.Value, Epsilon);
         Assert.AreEqual(20.0, y.Value, Epsilon, "y should be 2*x = 20, not x/2 = 5");

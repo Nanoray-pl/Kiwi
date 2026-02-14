@@ -17,6 +17,7 @@ public sealed class Tests
         {
             solver.AddConstraint(Constraint.Equal(x + 2.0, 20.0));
         });
+        solver.Solve();
 
         Assert.AreEqual(18.0, x.Value, Epsilon);
     }
@@ -33,6 +34,7 @@ public sealed class Tests
             solver.AddConstraint(Constraint.Equal(x, 20.0));
             solver.AddConstraint(Constraint.Equal(x + 2.0, y + 10.0));
         });
+        solver.Solve();
 
         Assert.AreEqual(20.0, x.Value, Epsilon);
         Assert.AreEqual(12.0, y.Value, Epsilon);
@@ -49,6 +51,7 @@ public sealed class Tests
         {
             solver.AddConstraint(Constraint.Equal(x, y));
         });
+        solver.Solve();
 
         Assert.AreEqual(x.Value, y.Value, Epsilon);
     }
@@ -67,6 +70,7 @@ public sealed class Tests
             solver.AddConstraint(Constraint.Equal(x, 10.0, Strength.Weak));
             solver.AddConstraint(Constraint.Equal(y, 10.0, Strength.Weak));
         });
+        solver.Solve();
 
         if (Math.Abs(x.Value - 10) < Epsilon)
         {

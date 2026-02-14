@@ -41,14 +41,14 @@ public sealed class Solver
         }
     }
 
-    /// <summary>Whether the solver should automatically re-solve the equation system when adding new constraints.</summary>
+    /// <summary>Whether the solver should automatically update variables after mutating solver operations.</summary>
     public bool AutoSolve
     {
         get => _AutoSolve;
         set
         {
             if (!_AutoSolve && value)
-                DualOptimize();
+                UpdateVariables();
             _AutoSolve = value;
         }
     }
@@ -77,12 +77,7 @@ public sealed class Solver
             if (oldAutoSolve)
             {
                 _AutoSolve = true;
-                DualOptimize();
                 UpdateVariables();
-            }
-            else
-            {
-                Solve();
             }
         }
         finally
@@ -99,7 +94,7 @@ public sealed class Solver
     }
 
     /// <summary>Updates the variables' values according to the current state of the (solved) equation system.</summary>
-    /// <remarks>This method should only be used when working with a <see cref="Solver"/> that has <see cref="AutoSolve"/> set to <c>true</c>; otherwise it is automatically called when appropriate.</remarks>
+    /// <remarks>This method should only be used when working with a <see cref="Solver"/> that has <see cref="AutoSolve"/> set to <c>false</c>; otherwise it is automatically called when appropriate.</remarks>
     public void UpdateVariables()
     {
         FlushUnusedVariables();
@@ -140,7 +135,12 @@ public sealed class Solver
     /// <param name="constraint">The constraint to add</param>
     /// <returns><c>true</c> if the operation succeeded, <c>false</c> otherwise (if the constraint is already added to the solver system).</returns>
     public bool TryAddConstraint(Constraint constraint)
-        => PrivateTryAddConstraint(constraint) != null;
+    {
+        bool result = PrivateTryAddConstraint(constraint) is not null;
+        if (result)
+            MaybeUpdateVariables();
+        return result;
+    }
 
     private Tag? PrivateTryAddConstraint(Constraint constraint)
     {
@@ -207,6 +207,7 @@ public sealed class Solver
         }
 
         Optimize(this.Objective);
+        MaybeUpdateVariables();
         return true;
     }
 
@@ -248,6 +249,7 @@ public sealed class Solver
         if (tag is null)
             return false;
         variableInfo.Edit = new(tag.Value, constraint, 0);
+        MaybeUpdateVariables();
         return true;
     }
 
@@ -298,35 +300,45 @@ public sealed class Solver
         double delta = value - variableInfo.Edit.Constant;
         variableInfo.Edit.Constant = value;
 
+        bool hasBasicErrorRow = false;
+
         {
             // Check first if the positive error variable is basic.
             if (this.Rows.TryGetValue(variableInfo.Edit.Tag.Marker, out var row))
             {
                 if (row.Add(-delta) < 0)
                     this.InfeasibleRows.Add(variableInfo.Edit.Tag.Marker);
-                goto Finish;
+                hasBasicErrorRow = true;
             }
 
             // Check next if the negative error variable is basic.
-            if (variableInfo.Edit.Tag.Other is { } other && this.Rows.TryGetValue(other, out row))
+            if (!hasBasicErrorRow && variableInfo.Edit.Tag.Other is { } other && this.Rows.TryGetValue(other, out row))
             {
                 if (row.Add(delta) < 0)
                     this.InfeasibleRows.Add(other);
-                goto Finish;
+                hasBasicErrorRow = true;
             }
         }
 
-        // Otherwise update each row where the error variables exist.
-        foreach (var (symbol, row) in this.Rows)
+        if (!hasBasicErrorRow)
         {
-            double coefficient = row.GetCoefficientForSymbol(variableInfo.Edit.Tag.Marker);
-            if (coefficient != 0 && row.Add(delta * coefficient) < 0 && symbol.Type != SymbolType.External)
-                this.InfeasibleRows.Add(symbol);
+            // Otherwise update each row where the error variables exist.
+            foreach (var (symbol, row) in this.Rows)
+            {
+                double coefficient = row.GetCoefficientForSymbol(variableInfo.Edit.Tag.Marker);
+                if (coefficient != 0 && row.Add(delta * coefficient) < 0 && symbol.Type != SymbolType.External)
+                    this.InfeasibleRows.Add(symbol);
+            }
         }
 
-        Finish:
+        DualOptimize();
+        MaybeUpdateVariables();
+    }
+
+    private void MaybeUpdateVariables()
+    {
         if (this._AutoSolve)
-            DualOptimize();
+            UpdateVariables();
     }
 
     private Symbol? GetSubject(Constraint constraint, Row row, ref Tag tag)

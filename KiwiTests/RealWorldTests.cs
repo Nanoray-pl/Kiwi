@@ -186,6 +186,7 @@ public sealed class RealWorldTests
                 solver.AddConstraint(constraint);
             }
         });
+        solver.Solve();
 
         Assert.AreEqual(20.0, nodes["thumb0"][Top].Value, Epsilon);
         Assert.AreEqual(20.0, nodes["thumb1"][Top].Value, Epsilon);
