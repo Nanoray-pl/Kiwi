@@ -137,8 +137,8 @@ public sealed class Solver
     public bool TryAddConstraint(Constraint constraint)
     {
         bool result = PrivateTryAddConstraint(constraint) is not null;
-        if (result)
-            MaybeUpdateVariables();
+        if (result && this._AutoSolve)
+            UpdateVariables();
         return result;
     }
 
@@ -207,7 +207,8 @@ public sealed class Solver
         }
 
         Optimize(this.Objective);
-        MaybeUpdateVariables();
+        if (this._AutoSolve)
+            UpdateVariables();
         return true;
     }
 
@@ -249,7 +250,8 @@ public sealed class Solver
         if (tag is null)
             return false;
         variableInfo.Edit = new(tag.Value, constraint, 0);
-        MaybeUpdateVariables();
+        if (this._AutoSolve)
+            UpdateVariables();
         return true;
     }
 
@@ -332,11 +334,6 @@ public sealed class Solver
         }
 
         DualOptimize();
-        MaybeUpdateVariables();
-    }
-
-    private void MaybeUpdateVariables()
-    {
         if (this._AutoSolve)
             UpdateVariables();
     }
