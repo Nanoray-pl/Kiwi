@@ -1,21 +1,34 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using Kiwi.Benchmarks;
+using Kiwi.Tests;
 using Nanoray.Kiwi;
 
-var _ = BenchmarkRunner.Run<EnamlLikeBenchmarks>();
+// Example: dotnet run -c Release --project KiwiBenchmarks -- --filter *EnamlLikeBenchmarks*
+var _ = BenchmarkSwitcher.FromTypes(new[]
+{
+    typeof(Benchmarks),
+    typeof(EnamlLikeBenchmarks)
+}).Run(args);
 
 namespace Kiwi.Benchmarks
 {
+    public class Benchmarks
+    {
+        [Benchmark]
+        public void Benchmark()
+            => new RealWorldTests().TestGridLayout();
+    }
+
     public class EnamlLikeBenchmarks
     {
         private static readonly Size[] Sizes = new[]
         {
-            //new Size(400, 600),
-            //new Size(600, 400),
-            //new Size(800, 1200),
-            //new Size(1200, 800),
-            //new Size(400, 800),
+            new Size(400, 600),
+            new Size(600, 400),
+            new Size(800, 1200),
+            new Size(1200, 800),
+            new Size(400, 800),
             new Size(800, 400)
         };
 
