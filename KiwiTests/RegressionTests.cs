@@ -40,12 +40,9 @@ public sealed class RegressionTests
         Variable y = new("y");
 
         // Set x = 10, then y = 2 * x (using double * Variable, which goes through double * Expression)
-        solver.WithTransaction(s =>
-        {
-            s.AddConstraint(Constraint.Equal(x, 10.0));
-            // 2.0 * x uses: double * Variable → double * Term → double * Expression
-            s.AddConstraint(Constraint.Equal(y, 2.0 * x));
-        });
+        solver.AddConstraint(Constraint.Equal(x, 10.0));
+        // 2.0 * x uses: double * Variable → double * Term → double * Expression
+        solver.AddConstraint(Constraint.Equal(y, 2.0 * x));
         solver.Solve();
 
         Assert.AreEqual(10.0, x.Value, Epsilon);
@@ -199,30 +196,6 @@ public sealed class RegressionTests
     }
 
     // =========================================================================
-    // WithTransaction should re-optimize when AutoSolve is enabled
-    // =========================================================================
-
-    [Test]
-    public void WithTransaction_ShouldDualOptimizeWhenAutoSolveEnabled()
-    {
-        Solver solver = new();
-        Variable x = new("x");
-
-        solver.AutoSolve = true;
-        solver.AddConstraint(Constraint.GreaterEqual(x, 0.0));
-        solver.AddConstraint(Constraint.LessEqual(x, 100.0));
-        solver.AddEditVariable(x, Strength.Strong);
-
-        solver.WithTransaction(s =>
-        {
-            s.SuggestValue(x, 150.0);
-        });
-
-        Assert.AreEqual(100.0, x.Value, Epsilon,
-            "AutoSolve should re-optimize after a transaction and clamp to bounds");
-    }
-
-    // =========================================================================
     // Expression hash code should match Expression equality
     // =========================================================================
 
@@ -243,34 +216,6 @@ public sealed class RegressionTests
 
         Assert.IsTrue(dict.ContainsKey(expr2),
             "Hash code should be consistent with equality so dictionaries can find equal expressions");
-    }
-
-    // =========================================================================
-    // Correctness: WithTransaction should restore AutoSolve on exception
-    // =========================================================================
-
-    [Test]
-    public void WithTransaction_ExceptionShouldRestoreAutoSolve()
-    {
-        Solver solver = new();
-        Variable x = new("x");
-        solver.AutoSolve = true;
-
-        try
-        {
-            solver.WithTransaction(s =>
-            {
-                s.AddConstraint(Constraint.Equal(x, 10.0));
-                throw new InvalidOperationException("boom");
-            });
-        }
-        catch (InvalidOperationException)
-        {
-            // swallow
-        }
-
-        Assert.IsTrue(solver.AutoSolve,
-            "AutoSolve should be restored even if the transaction throws");
     }
 
     // =========================================================================

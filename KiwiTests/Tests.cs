@@ -13,10 +13,7 @@ public sealed class Tests
         Solver solver = new();
         Variable x = new("x");
 
-        solver.WithTransaction(solver =>
-        {
-            solver.AddConstraint(Constraint.Equal(x + 2.0, 20.0));
-        });
+        solver.AddConstraint(Constraint.Equal(x + 2.0, 20.0));
         solver.Solve();
 
         Assert.AreEqual(18.0, x.Value, Epsilon);
@@ -29,11 +26,8 @@ public sealed class Tests
         Variable x = new("x");
         Variable y = new("y");
 
-        solver.WithTransaction(solver =>
-        {
-            solver.AddConstraint(Constraint.Equal(x, 20.0));
-            solver.AddConstraint(Constraint.Equal(x + 2.0, y + 10.0));
-        });
+        solver.AddConstraint(Constraint.Equal(x, 20.0));
+        solver.AddConstraint(Constraint.Equal(x + 2.0, y + 10.0));
         solver.Solve();
 
         Assert.AreEqual(20.0, x.Value, Epsilon);
@@ -47,10 +41,7 @@ public sealed class Tests
         Variable x = new("x");
         Variable y = new("y");
 
-        solver.WithTransaction(solver =>
-        {
-            solver.AddConstraint(Constraint.Equal(x, y));
-        });
+        solver.AddConstraint(Constraint.Equal(x, y));
         solver.Solve();
 
         Assert.AreEqual(x.Value, y.Value, Epsilon);
@@ -63,13 +54,10 @@ public sealed class Tests
         Variable x = new("x");
         Variable y = new("y");
 
-        solver.WithTransaction(solver =>
-        {
-            solver.AddConstraint(Constraint.LessEqual(x, y));
-            solver.AddConstraint(Constraint.Equal(y, x + 3.0));
-            solver.AddConstraint(Constraint.Equal(x, 10.0, Strength.Weak));
-            solver.AddConstraint(Constraint.Equal(y, 10.0, Strength.Weak));
-        });
+        solver.AddConstraint(Constraint.LessEqual(x, y));
+        solver.AddConstraint(Constraint.Equal(y, x + 3.0));
+        solver.AddConstraint(Constraint.Equal(x, 10.0, Strength.Weak));
+        solver.AddConstraint(Constraint.Equal(y, 10.0, Strength.Weak));
         solver.Solve();
 
         if (Math.Abs(x.Value - 10) < Epsilon)

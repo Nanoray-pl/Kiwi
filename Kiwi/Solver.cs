@@ -41,18 +41,6 @@ public sealed class Solver
         }
     }
 
-    /// <summary>Whether the solver should automatically update variables after mutating solver operations.</summary>
-    public bool AutoSolve
-    {
-        get => _AutoSolve;
-        set
-        {
-            if (!_AutoSolve && value)
-                UpdateVariables();
-            _AutoSolve = value;
-        }
-    }
-
     private int NextSymbolID;
     private readonly Dictionary<Constraint, Tag> Constraints = new();
     private readonly SortedList<Symbol, Row> Rows = new();
@@ -60,31 +48,6 @@ public sealed class Solver
     private readonly List<Symbol> InfeasibleRows = new();
     private readonly Row Objective = new();
     private Row? Artificial;
-
-    private bool _AutoSolve;
-
-    /// <summary>Starts a new solver system transaction.</summary>
-    /// <remarks>When <see cref="AutoSolve"/> is enabled, automatic variable updates are deferred until the end of the provided closure.</remarks>
-    /// <param name="closure">The actions to execute on the solver, before trying to re-solve the equation system.</param>
-    public void WithTransaction(Action<Solver> closure)
-    {
-        bool oldAutoSolve = _AutoSolve;
-        _AutoSolve = false;
-        try
-        {
-            closure(this);
-
-            if (oldAutoSolve)
-            {
-                _AutoSolve = true;
-                UpdateVariables();
-            }
-        }
-        finally
-        {
-            _AutoSolve = oldAutoSolve;
-        }
-    }
 
     /// <summary>Solves the equation system.</summary>
     public void Solve()
@@ -94,7 +57,6 @@ public sealed class Solver
     }
 
     /// <summary>Updates the variables' values according to the current state of the (solved) equation system.</summary>
-    /// <remarks>This method should only be used when working with a <see cref="Solver"/> that has <see cref="AutoSolve"/> set to <c>false</c>; otherwise it is automatically called when appropriate.</remarks>
     public void UpdateVariables()
     {
         FlushUnusedVariables();
@@ -136,10 +98,7 @@ public sealed class Solver
     /// <returns><c>true</c> if the operation succeeded, <c>false</c> otherwise (if the constraint is already added to the solver system).</returns>
     public bool TryAddConstraint(Constraint constraint)
     {
-        bool result = PrivateTryAddConstraint(constraint) is not null;
-        if (result && this._AutoSolve)
-            UpdateVariables();
-        return result;
+        return PrivateTryAddConstraint(constraint) is not null;
     }
 
     private Tag? PrivateTryAddConstraint(Constraint constraint)
@@ -207,8 +166,6 @@ public sealed class Solver
         }
 
         Optimize(this.Objective);
-        if (this._AutoSolve)
-            UpdateVariables();
         return true;
     }
 
@@ -250,8 +207,6 @@ public sealed class Solver
         if (tag is null)
             return false;
         variableInfo.Edit = new(tag.Value, constraint, 0);
-        if (this._AutoSolve)
-            UpdateVariables();
         return true;
     }
 
@@ -334,8 +289,6 @@ public sealed class Solver
         }
 
         DualOptimize();
-        if (this._AutoSolve)
-            UpdateVariables();
     }
 
     private Symbol? GetSubject(Constraint constraint, Row row, ref Tag tag)
