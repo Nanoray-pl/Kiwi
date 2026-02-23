@@ -12,7 +12,7 @@
     <PackageTags>cassowary cassowary-algorithm constraint-solver linear-programming layout csharp</PackageTags>
     <Authors>Shockah</Authors>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <Version>2.0.0</Version>
+    <Version>3.0.0</Version>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>A C# port of the Kiwi C++ and the Swift implementation of the Cassowary constraint solving algorithm.</Description>
     <Copyright>Nanoray</Copyright>
