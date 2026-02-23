@@ -2,7 +2,7 @@ using System;
 
 namespace Nanoray.Kiwi;
 
-internal readonly struct Symbol : IEquatable<Symbol>
+internal readonly struct Symbol : IEquatable<Symbol>, IComparable<Symbol>
 {
     internal readonly int ID;
     internal readonly SymbolType Type;
@@ -14,14 +14,17 @@ internal readonly struct Symbol : IEquatable<Symbol>
     }
 
     public bool Equals(Symbol other)
-        => ID == other.ID; // not checking for Type, IDs are auto-generated across all types together
+        => this.ID == other.ID; // not checking for Type, IDs are auto-generated across all types together
 
     public override bool Equals(object? obj)
         => obj is Symbol symbol && Equals(symbol);
 
     public override int GetHashCode()
-        => ID;
+        => this.ID;
+
+    public int CompareTo(Symbol other)
+        => this.ID.CompareTo(other.ID);
 
     public override string ToString()
-        => $"{{#{ID} {Type}}}";
+        => $"{{#{this.ID} {this.Type}}}";
 }

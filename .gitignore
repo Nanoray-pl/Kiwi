@@ -3,3 +3,6 @@
 */bin/**
 */obj/**
 packages/**
+**/.vscode/**
+BenchmarkDotNet.Artifacts/
+**/BenchmarkDotNet.Artifacts/

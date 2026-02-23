@@ -4,18 +4,50 @@ using System.Collections.Generic;
 namespace Nanoray.Kiwi;
 
 /// <summary>Describes a constraint placed on a number of variables in the solver system.</summary>
-public readonly struct Constraint : IEquatable<Constraint>
+/// <remarks>
+/// <para>
+/// Constraint identity is handle-based: equality compares the internal shared constraint data instance,
+/// not structural expression/operator/strength value equality.
+/// </para>
+/// <para>
+/// As a consequence, two separately constructed but value-equivalent constraints are not equal.
+/// </para>
+/// </remarks>
+public sealed class Constraint : IEquatable<Constraint>
 {
+    private sealed class ConstraintData
+    {
+        internal readonly Expression Expression;
+        internal readonly RelationalOperator Operator;
+        internal readonly double Strength;
+
+        internal ConstraintData(Expression expression, RelationalOperator @operator, double strength)
+        {
+            this.Expression = expression;
+            this.Operator = @operator;
+            this.Strength = strength;
+        }
+    }
+
+    private readonly ConstraintData Data;
+
     /// <summary>The expression held by the constraint.</summary>
-    public Expression Expression { get; init; }
+    public Expression Expression
+        => this.Data.Expression;
 
     /// <summary>The operator of the constraint.</summary>
-    public RelationalOperator Operator { get; init; }
+    public RelationalOperator Operator
+        => this.Data.Operator;
 
     /// <summary>The strength of the constraint (see <see cref="Strength"/>).</summary>
-    public double Strength { get; init; }
+    public double Strength
+        => this.Data.Strength;
 
     /// <summary>Whether the constraint is currently violated based on the expression's value.</summary>
+    /// <remarks>
+    /// For inequality operators, this uses a near-zero tolerance (via <see cref="Util.IsNearZero(double)"/>)
+    /// to treat tiny floating-point residuals as non-violations.
+    /// </remarks>
     public bool Violated
         => Operator switch
         {
@@ -31,42 +63,56 @@ public readonly struct Constraint : IEquatable<Constraint>
     /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
     public Constraint(Expression expression, RelationalOperator @operator, double? strength = null)
     {
-        this.Expression = Reduce(expression);
-        this.Operator = @operator;
-        this.Strength = Kiwi.Strength.Clip(strength ?? Kiwi.Strength.Required);
+        this.Data = new ConstraintData(
+            Reduce(expression),
+            @operator,
+            Kiwi.Strength.Clip(strength ?? Kiwi.Strength.Required)
+        );
     }
 
     /// <summary>Create a constraint cloning another constraint.</summary>
     /// <param name="other">The constraint to clone.</param>
     /// <param name="strength">The strength of the constraint (see <see cref="Strength"/>). Defaults to <see cref="Strength.Required"/>.</param>
-    public Constraint(Constraint other, double? strength = null) : this(other.Expression, other.Operator, strength) { }
+    public Constraint(Constraint other, double? strength = null)
+    {
+        if (strength is null)
+        {
+            this.Data = other.Data;
+            return;
+        }
+
+        this.Data = new ConstraintData(
+            other.Expression,
+            other.Operator,
+            Kiwi.Strength.Clip(strength.Value)
+        );
+    }
+
+    /// <summary>Returns <c>true</c> when both constraints reference the same internal constraint data instance.</summary>
+    public bool Equals(Constraint? other)
+        => other is not null && ReferenceEquals(this.Data, other.Data);
 
     /// <inheritdoc/>
     public override bool Equals(object? obj)
         => obj is Constraint constraint && Equals(constraint);
 
     /// <inheritdoc/>
-    public bool Equals(Constraint other)
-        // ReSharper disable once CompareOfFloatsByEqualityOperator
-        => Expression == other.Expression && Operator == other.Operator && Strength == other.Strength;
+    public override int GetHashCode()
+        => this.Data.GetHashCode();
 
     /// <summary>The equality operator <c>==</c> returns <c>true</c> if its operands are equal, <c>false</c> otherwise.</summary>
     /// <param name="left">The left operand.</param>
     /// <param name="right">The right operand.</param>
     /// <returns><c>true</c> if its operands are equal, <c>false</c> otherwise.</returns>
-    public static bool operator ==(Constraint left, Constraint right)
-        => left.Equals(right);
+    public static bool operator ==(Constraint? left, Constraint? right)
+        => Equals(left, right);
 
     /// <summary>The equality operator <c>!=</c> returns <c>false</c> if its operands are equal, <c>true</c> otherwise.</summary>
     /// <param name="left">The left operand.</param>
     /// <param name="right">The right operand.</param>
     /// <returns><c>false</c> if its operands are equal, <c>true</c> otherwise.</returns>
-    public static bool operator !=(Constraint left, Constraint right)
-        => !(left == right);
-
-    /// <inheritdoc/>
-    public override int GetHashCode()
-        => (Expression, Operator, Strength).GetHashCode();
+    public static bool operator !=(Constraint? left, Constraint? right)
+        => !Equals(left, right);
 
     /// <summary>Creates an equality constraint: <paramref name="lhs"/> == <paramref name="rhs"/>.</summary>
     /// <param name="lhs">The left-hand side of the equation.</param>

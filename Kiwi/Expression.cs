@@ -1,6 +1,6 @@
 using System;
+using System.Collections.Immutable;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Nanoray.Kiwi;
 
@@ -14,35 +14,45 @@ public readonly partial struct Expression : IEquatable<Expression>
     /// <summary>The constant added to the result.</summary>
     public readonly double Constant;
 
-    internal readonly Term[] _Terms;
+    internal readonly ImmutableArray<Term> _Terms;
 
     /// <summary>The sum of all variable components' values and the constant.</summary>
     public double Value
-        => _Terms.Sum(t => t.Value) + Constant;
+    {
+        get
+        {
+            double value = Constant;
+            foreach (var term in this._Terms)
+                value += term.Value;
+            return value;
+        }
+    }
 
     /// <summary>Whether the expression is constant, as in, it does not depend on any variables.</summary>
     public bool IsConstant
         => this._Terms.Length == 0;
 
-    internal Expression(Term[] terms, double constant = 0)
+    internal Expression(ImmutableArray<Term> terms, double constant = 0)
     {
         this._Terms = terms;
         this.Constant = constant;
     }
 
+    internal Expression(Term[] terms, double constant = 0) : this(ImmutableArray.Create(terms), constant) { }
+
     /// <summary>Create an expression with the given terms.</summary>
     /// <param name="terms">The terms, or in other words, variable components.</param>
     /// <param name="constant">The constant added to the result.</param>
-    public Expression(IReadOnlyCollection<Term> terms, double constant = 0) : this(terms.ToArray(), constant) { }
+    public Expression(IReadOnlyCollection<Term> terms, double constant = 0) : this(terms.ToImmutableArray(), constant) { }
 
     /// <summary>Create an expression with the given term.</summary>
     /// <param name="term">The term, or in other words, variable component.</param>
     /// <param name="constant">The constant added to the result.</param>
-    public Expression(Term term, double constant = 0) : this(new Term[] { term }, constant) { }
+    public Expression(Term term, double constant = 0) : this(new[] { term }, constant) { }
 
     /// <summary>Create a constant expression.</summary>
     /// <param name="constant">The result constant.</param>
-    public Expression(double constant = 0) : this(Array.Empty<Term>(), constant) { }
+    public Expression(double constant = 0) : this(ImmutableArray<Term>.Empty, constant) { }
 
     /// <inheritdoc/>
     public override bool Equals(object? obj)
@@ -71,7 +81,7 @@ public readonly partial struct Expression : IEquatable<Expression>
     /// <inheritdoc/>
     public override int GetHashCode()
     {
-        int hash = BitConverter.SingleToInt32Bits((float)this.Constant);
+        int hash = this.Constant.GetHashCode();
         foreach (var coefficient in this.GetVariableCoefficients())
             hash += coefficient.Key.GetHashCode() ^ coefficient.Value.GetHashCode();
         return hash;

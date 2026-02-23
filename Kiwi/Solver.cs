@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
 
+#if NET6_0_OR_GREATER
+using System.Runtime.InteropServices;
+#endif
+
 namespace Nanoray.Kiwi;
 
 /// <summary>Describes a linear equation/inequality constraint solver system.</summary>
@@ -41,48 +45,13 @@ public sealed class Solver
         }
     }
 
-    /// <summary>Whether the solver should automatically re-solve the equation system when adding new constraints.</summary>
-    public bool AutoSolve
-    {
-        get => _AutoSolve;
-        set
-        {
-            if (!_AutoSolve && value)
-                DualOptimize();
-            _AutoSolve = value;
-        }
-    }
-
     private int NextSymbolID;
     private readonly Dictionary<Constraint, Tag> Constraints = new();
-    private readonly OrderedDictionary<Symbol, Row> Rows = new();
+    private readonly SortedList<Symbol, Row> Rows = new();
     private readonly Dictionary<Variable, VariableInfo> Variables = new();
-    private readonly List<Symbol> InfeasibleRows = new();
+    private readonly List<Symbol> InfeasibleRows = [];
     private readonly Row Objective = new();
     private Row? Artificial;
-
-    private bool _AutoSolve;
-
-    /// <summary>Starts a new solver system transaction.</summary>
-    /// <remarks>The solver will not try to re-solve the equation system until the end of the provided closure.</remarks>
-    /// <param name="closure">The actions to execute on the solver, before trying to re-solve the equation system.</param>
-    public void WithTransaction(Action<Solver> closure)
-    {
-        bool oldAutoSolve = _AutoSolve;
-        _AutoSolve = false;
-
-        closure(this);
-
-        if (oldAutoSolve)
-        {
-            AutoSolve = true;
-            UpdateVariables();
-        }
-        else
-        {
-            Solve();
-        }
-    }
 
     /// <summary>Solves the equation system.</summary>
     public void Solve()
@@ -92,7 +61,6 @@ public sealed class Solver
     }
 
     /// <summary>Updates the variables' values according to the current state of the (solved) equation system.</summary>
-    /// <remarks>This method should only be used when working with a <see cref="Solver"/> that has <see cref="AutoSolve"/> set to <c>true</c>; otherwise it is automatically called when appropriate.</remarks>
     public void UpdateVariables()
     {
         FlushUnusedVariables();
@@ -110,7 +78,7 @@ public sealed class Solver
         {
             if (info.ReferenceCount > 0)
                 continue;
-            (toRemove ??= new()).Add(info.Variable);
+            (toRemove ??= []).Add(info.Variable);
         }
 
         if (toRemove is null)
@@ -133,7 +101,7 @@ public sealed class Solver
     /// <param name="constraint">The constraint to add</param>
     /// <returns><c>true</c> if the operation succeeded, <c>false</c> otherwise (if the constraint is already added to the solver system).</returns>
     public bool TryAddConstraint(Constraint constraint)
-        => PrivateTryAddConstraint(constraint) != null;
+        => PrivateTryAddConstraint(constraint) is not null;
 
     private Tag? PrivateTryAddConstraint(Constraint constraint)
     {
@@ -151,12 +119,9 @@ public sealed class Solver
 
         this.Constraints[constraint] = tag;
 
-        for (int i = 0; i < referencedVariables.Count; i++)
-        {
-            var variable = referencedVariables[i];
+        foreach (var variable in referencedVariables)
             if (this.Variables.TryGetValue(variable, out var info))
                 info.ReferenceCount++;
-        }
 
         Optimize(this.Objective);
 
@@ -237,8 +202,9 @@ public sealed class Solver
         Term term = new(variable);
         Constraint constraint = new(new Expression(term), RelationalOperator.Equal, strength);
 
-        if (PrivateTryAddConstraint(constraint) is { } tag)
-            variableInfo.Edit = new(tag, constraint, 0);
+        if (PrivateTryAddConstraint(constraint) is not { } tag)
+            return false;
+        variableInfo.Edit = new(tag, constraint, 0);
         return true;
     }
 
@@ -282,42 +248,44 @@ public sealed class Solver
     /// <seealso cref="AddEditVariable(Variable, double)"/>
     public void SuggestValue(Variable variable, double value)
     {
-        var variableInfo = GetInfo(variable);
-        if (variableInfo?.Edit is null)
+        if (GetInfo(variable)?.Edit is not { } editInfo)
             throw new UnknownEditVariableException();
 
-        double delta = value - variableInfo.Edit.Constant;
-        variableInfo.Edit.Constant = value;
+        double delta = value - editInfo.Constant;
+        editInfo.Constant = value;
+
+        bool hasBasicErrorRow = false;
 
         {
             // Check first if the positive error variable is basic.
-            if (this.Rows.TryGetValue(variableInfo.Edit.Tag.Marker, out var row))
+            if (this.Rows.TryGetValue(editInfo.Tag.Marker, out var row))
             {
                 if (row.Add(-delta) < 0)
-                    this.InfeasibleRows.Add(variableInfo.Edit.Tag.Marker);
-                goto Finish;
+                    this.InfeasibleRows.Add(editInfo.Tag.Marker);
+                hasBasicErrorRow = true;
             }
 
             // Check next if the negative error variable is basic.
-            if (variableInfo.Edit.Tag.Other is { } other && this.Rows.TryGetValue(other, out row))
+            if (!hasBasicErrorRow && editInfo.Tag.Other is { } other && this.Rows.TryGetValue(other, out row))
             {
                 if (row.Add(delta) < 0)
                     this.InfeasibleRows.Add(other);
-                goto Finish;
+                hasBasicErrorRow = true;
             }
         }
 
-        // Otherwise update each row where the error variables exist.
-        foreach (var (symbol, row) in this.Rows)
+        if (!hasBasicErrorRow)
         {
-            double coefficient = row.GetCoefficientForSymbol(variableInfo.Edit.Tag.Marker);
-            if (coefficient != 0 && row.Add(delta * coefficient) < 0 && symbol.Type != SymbolType.External)
-                this.InfeasibleRows.Add(symbol);
+            // Otherwise update each row where the error variables exist.
+            foreach (var (symbol, row) in this.Rows)
+            {
+                double coefficient = row.GetCoefficientForSymbol(editInfo.Tag.Marker);
+                if (coefficient != 0 && row.Add(delta * coefficient) < 0 && symbol.Type != SymbolType.External)
+                    this.InfeasibleRows.Add(symbol);
+            }
         }
 
-        Finish:
-        if (this._AutoSolve)
-            DualOptimize();
+        DualOptimize();
     }
 
     private Symbol? GetSubject(Constraint constraint, Row row, ref Tag tag)
@@ -342,7 +310,7 @@ public sealed class Solver
     {
         if (tag.Marker.Type == SymbolType.Error)
             RemoveMarkerEffects(tag.Marker, constraint.Strength);
-        if (tag.Other is { } other && other.Type == SymbolType.Error)
+        if (tag.Other is { Type: SymbolType.Error } other)
             RemoveMarkerEffects(other, constraint.Strength);
     }
 
@@ -421,7 +389,7 @@ public sealed class Solver
         row = new(constraint.Expression.Constant);
         Symbol marker;
         Symbol? other = null;
-        referencedVariables = new();
+        referencedVariables = [];
 
         foreach (var term in constraint.Expression._Terms)
         {
@@ -505,12 +473,10 @@ public sealed class Solver
         foreach (var symbol in row.Cells.Keys)
             if (symbol.Type == SymbolType.External)
                 return symbol;
-        if (tag.Marker.Type is SymbolType.Slack or SymbolType.Error)
-            if (row.GetCoefficientForSymbol(tag.Marker) < 0)
-                return tag.Marker;
-        if (tag.Other is { } other && other.Type is SymbolType.Slack or SymbolType.Error)
-            if (row.GetCoefficientForSymbol(other) < 0)
-                return other;
+        if (tag.Marker.Type is SymbolType.Slack or SymbolType.Error && row.GetCoefficientForSymbol(tag.Marker) < 0)
+            return tag.Marker;
+        if (tag.Other is { Type: SymbolType.Slack or SymbolType.Error } other && row.GetCoefficientForSymbol(other) < 0)
+            return other;
         return null;
     }
 
@@ -533,9 +499,8 @@ public sealed class Solver
         // If the artificial variable is basic, pivot the row so that
         // it becomes basic. If the row is constant, exit early.
 
-        if (this.Rows.TryGetValue(artificial, out var rowPointer))
+        if (this.Rows.Remove(artificial, out var rowPointer))
         {
-            this.Rows.Remove(artificial);
             if (rowPointer.Cells.Count == 0)
                 return success;
 
@@ -599,7 +564,7 @@ public sealed class Solver
         {
             var leaving = this.InfeasibleRows[^1];
             this.InfeasibleRows.RemoveAt(this.InfeasibleRows.Count - 1);
-            if (!this.Rows.TryGetValue(leaving, out var row) || row.Constant >= 0)
+            if (!this.Rows.TryGetValue(leaving, out var row) || row.Constant >= 0 || Util.IsNearZero(row.Constant))
                 continue;
 
             var entering = GetDualEnteringSymbol(row) ?? throw new InternalSolverException();
@@ -671,15 +636,22 @@ public sealed class Solver
         => new(++this.NextSymbolID, type);
 
     private VariableInfo? GetInfo(Variable variable)
-        => this.Variables.GetValueOrNull(variable);
+        => this.Variables.GetValueOrDefault(variable);
 
     private VariableInfo ObtainInfo(Variable variable)
     {
+        #if NET6_0_OR_GREATER
+        ref var info = ref CollectionsMarshal.GetValueRefOrAddDefault(this.Variables, variable, out bool infoExists);
+        if (!infoExists)
+            info = new(variable, CreateSymbol(SymbolType.External));
+        return info!;
+        #else
         if (!this.Variables.TryGetValue(variable, out var info))
         {
             info = new(variable, CreateSymbol(SymbolType.External));
             this.Variables[variable] = info;
         }
         return info;
+        #endif
     }
 }

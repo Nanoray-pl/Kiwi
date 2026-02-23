@@ -1,6 +1,6 @@
 namespace Nanoray.Kiwi;
 
-public partial record struct Term
+public readonly partial record struct Term
 {
     /// <summary>Negates an expression value.</summary>
     /// <param name="value">The value to negate.</param>
@@ -13,9 +13,9 @@ public partial record struct Term
     /// <param name="rhs">The right side of the expression</param>
     /// <returns>The summed expression.</returns>
     public static Expression operator +(Term lhs, Term rhs)
-        => new(new Term[] { lhs, rhs });
+        => new(new[] { lhs, rhs });
 
-    /// <summary>Subtracts two expression values together.</summary>
+    /// <summary>Subtracts the right expression value from the left expression value.</summary>
     /// <param name="lhs">The left side of the expression.</param>
     /// <param name="rhs">The right side of the expression</param>
     /// <returns>The subtracted expression.</returns>

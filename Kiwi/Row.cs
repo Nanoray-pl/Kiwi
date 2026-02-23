@@ -1,4 +1,4 @@
-using System.Linq;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace Nanoray.Kiwi;
@@ -6,7 +6,7 @@ namespace Nanoray.Kiwi;
 internal sealed class Row
 {
     internal double Constant => _Constant;
-    internal readonly OrderedDictionary<Symbol, double> Cells;
+    internal readonly SortedList<Symbol, double> Cells;
 
     private double _Constant;
 
@@ -42,7 +42,7 @@ internal sealed class Row
     /// is zero, the symbol will be removed from the row.
     /// </remarks>
     internal void Insert(Symbol symbol, double coefficient = 1)
-        => SetCell(symbol, Cells.Dictionary.GetValueOrDefault(symbol) + coefficient);
+        => SetCell(symbol, this.Cells.GetValueOrDefault(symbol) + coefficient);
 
     /// <summary>Insert a row into this row with a given coefficient.</summary>
     /// <remarks>
@@ -53,8 +53,8 @@ internal sealed class Row
     internal void Insert(Row other, double coefficient = 1)
     {
         this._Constant += other._Constant * coefficient;
-        foreach (var (symbol, symbolCoefficient) in other.Cells.Dictionary)
-            SetCell(symbol, this.Cells.Dictionary.GetValueOrDefault(symbol) + symbolCoefficient * coefficient);
+        foreach ((var symbol, double symbolCoefficient) in other.Cells)
+            SetCell(symbol, this.Cells.GetValueOrDefault(symbol) + symbolCoefficient * coefficient);
     }
 
     /// <summary>Remove the given symbol from the row.</summary>
@@ -65,8 +65,11 @@ internal sealed class Row
     internal void ReverseSign()
     {
         this._Constant = -this._Constant;
-        foreach (var (symbol, coefficient) in this.Cells.Dictionary)
-            this.Cells[symbol] = -coefficient;
+        for (int i = 0; i < this.Cells.Count; i++)
+        {
+            var symbol = this.Cells.Keys[i];
+            this.Cells[symbol] = -this.Cells[symbol];
+        }
     }
 
     /// <summary>Solve the row for the given symbol.</summary>
@@ -80,15 +83,17 @@ internal sealed class Row
     /// </remarks>
     internal void SolveForSymbol(Symbol symbol)
     {
-        if (!this.Cells.Dictionary.TryGetValue(symbol, out double symbolCoefficient))
+        if (!this.Cells.Remove(symbol, out double symbolCoefficient))
             throw new InternalSolverException();
-        this.Cells.Remove(symbol);
 
         double coefficient = -1 / symbolCoefficient;
         this._Constant *= coefficient;
 
-        foreach (var (cellSymbol, cellCoefficient) in this.Cells.Dictionary)
-            this.Cells[cellSymbol] = cellCoefficient * coefficient;
+        for (int i = 0; i < this.Cells.Count; i++)
+        {
+            var cellSymbol = this.Cells.Keys[i];
+            this.Cells[cellSymbol] *= coefficient;
+        }
     }
 
     /// <summary>Solve the row for the given symbols.</summary>
@@ -109,7 +114,7 @@ internal sealed class Row
     /// <summary>Get the coefficient for the given symbol.</summary>
     /// <remarks>If the symbol does not exist in the row, zero will be returned.</remarks>
     internal double GetCoefficientForSymbol(Symbol symbol)
-        => this.Cells.Dictionary.GetValueOrDefault(symbol);
+        => this.Cells.GetValueOrDefault(symbol);
 
     /// <summary>Substitute a symbol with the data from another row.</summary>
     /// <remarks>
@@ -120,9 +125,8 @@ internal sealed class Row
     /// </remarks>
     internal void Substitute(Symbol symbol, Row row)
     {
-        if (!this.Cells.Dictionary.TryGetValue(symbol, out double coefficient))
+        if (!this.Cells.Remove(symbol, out double coefficient))
             return;
-        this.Cells.Remove(symbol);
         Insert(row, coefficient);
     }
 
@@ -134,7 +138,7 @@ internal sealed class Row
     /// </remarks>
     internal Symbol? GetEnteringSymbol()
     {
-        foreach (var (symbol, value) in this.Cells)
+        foreach ((var symbol, double value) in this.Cells)
             if (symbol.Type != SymbolType.Dummy && value < 0)
                 return symbol;
         return null;
@@ -152,5 +156,10 @@ internal sealed class Row
 
     /// <summary>Test whether this row is composed of all dummy variables.</summary>
     internal bool AreAllDummies()
-        => this.Cells.Keys.All(s => s.Type == SymbolType.Dummy);
+    {
+        foreach (var symbol in this.Cells.Keys)
+            if (symbol.Type != SymbolType.Dummy)
+                return false;
+        return true;
+    }
 }

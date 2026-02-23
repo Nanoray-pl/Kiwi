@@ -11,7 +11,7 @@ public readonly partial struct Expression
     public static Expression operator +(Expression lhs, Term rhs)
     {
         Term[] terms = new Term[lhs._Terms.Length + 1];
-        Array.Copy(lhs._Terms, terms, lhs._Terms.Length);
+        lhs._Terms.CopyTo(terms);
         terms[^1] = rhs;
         return new(terms, lhs.Constant);
     }
@@ -23,14 +23,14 @@ public readonly partial struct Expression
     public static Expression operator +(Term lhs, Expression rhs)
         => rhs + lhs;
 
-    /// <summary>Subtracts two expression values together.</summary>
+    /// <summary>Subtracts the right expression value from the left expression value.</summary>
     /// <param name="lhs">The left side of the expression.</param>
     /// <param name="rhs">The right side of the expression</param>
     /// <returns>The subtracted expression.</returns>
     public static Expression operator -(Expression lhs, Term rhs)
         => lhs + -rhs;
 
-    /// <summary>Subtracts two expression values together.</summary>
+    /// <summary>Subtracts the right expression value from the left expression value.</summary>
     /// <param name="lhs">The left side of the expression.</param>
     /// <param name="rhs">The right side of the expression</param>
     /// <returns>The subtracted expression.</returns>

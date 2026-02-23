@@ -13,17 +13,13 @@ public sealed class ConstantVariableInequalityTests
         Solver solver = new();
         Variable x = new("x");
 
-        solver.WithTransaction(solver =>
-        {
-            solver.AddConstraint(Constraint.LessEqual(100, x));
-        });
+        solver.AddConstraint(Constraint.LessEqual(100, x));
+        solver.Solve();
 
         Assert.That(100 <= x.Value);
 
-        solver.WithTransaction(solver =>
-        {
-            solver.AddConstraint(Constraint.Equal(x, 110));
-        });
+        solver.AddConstraint(Constraint.Equal(x, 110));
+        solver.Solve();
 
         Assert.AreEqual(110, x.Value, Epsilon);
     }
@@ -34,19 +30,14 @@ public sealed class ConstantVariableInequalityTests
         Solver solver = new();
         Variable x = new("x");
 
-        solver.WithTransaction(solver =>
-        {
-            solver.AddConstraint(Constraint.LessEqual(100, x));
-        });
+        solver.AddConstraint(Constraint.LessEqual(100, x));
+        solver.Solve();
 
         Assert.That(100 <= x.Value);
 
         Assert.Throws<UnsatisfiableConstraintException>(() =>
         {
-            solver.WithTransaction(solver =>
-            {
-                solver.AddConstraint(Constraint.Equal(x, 10));
-            });
+            solver.AddConstraint(Constraint.Equal(x, 10));
         });
     }
 
@@ -56,17 +47,13 @@ public sealed class ConstantVariableInequalityTests
         Solver solver = new();
         Variable x = new("x");
 
-        solver.WithTransaction(solver =>
-        {
-            solver.AddConstraint(Constraint.GreaterEqual(100, x));
-        });
+        solver.AddConstraint(Constraint.GreaterEqual(100, x));
+        solver.Solve();
 
         Assert.That(100 >= x.Value);
 
-        solver.WithTransaction(solver =>
-        {
-            solver.AddConstraint(Constraint.Equal(x, 90));
-        });
+        solver.AddConstraint(Constraint.Equal(x, 90));
+        solver.Solve();
 
         Assert.AreEqual(90, x.Value, Epsilon);
     }
@@ -77,19 +64,14 @@ public sealed class ConstantVariableInequalityTests
         Solver solver = new();
         Variable x = new("x");
 
-        solver.WithTransaction(solver =>
-        {
-            solver.AddConstraint(Constraint.GreaterEqual(100, x));
-        });
+        solver.AddConstraint(Constraint.GreaterEqual(100, x));
+        solver.Solve();
 
         Assert.That(100 >= x.Value);
 
         Assert.Throws<UnsatisfiableConstraintException>(() =>
         {
-            solver.WithTransaction(solver =>
-            {
-                solver.AddConstraint(Constraint.Equal(x, 110));
-            });
+            solver.AddConstraint(Constraint.Equal(x, 110));
         });
     }
 }

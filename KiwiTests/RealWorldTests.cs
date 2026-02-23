@@ -176,16 +176,14 @@ public sealed class RealWorldTests
         Solver solver = new();
         Dictionary<string, Dictionary<string, Variable>> nodes = new();
 
-        solver.WithTransaction(solver =>
-        {
-            var variableResolver = new TestVariableResolver(solver, nodes);
+        var variableResolver = new TestVariableResolver(solver, nodes);
 
-            foreach (string constraintString in Constraints)
-            {
-                var constraint = ConstraintParser.ParseConstraint(constraintString, variableResolver);
-                solver.AddConstraint(constraint);
-            }
-        });
+        foreach (string constraintString in Constraints)
+        {
+            var constraint = ConstraintParser.ParseConstraint(constraintString, variableResolver);
+            solver.AddConstraint(constraint);
+        }
+        solver.Solve();
 
         Assert.AreEqual(20.0, nodes["thumb0"][Top].Value, Epsilon);
         Assert.AreEqual(20.0, nodes["thumb1"][Top].Value, Epsilon);

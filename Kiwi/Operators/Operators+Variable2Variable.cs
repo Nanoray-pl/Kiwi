@@ -1,6 +1,6 @@
 namespace Nanoray.Kiwi;
 
-public readonly partial record struct Variable
+public sealed partial class Variable
 {
     /// <summary>Negates an expression value.</summary>
     /// <param name="value">The value to negate.</param>
@@ -15,7 +15,7 @@ public readonly partial record struct Variable
     public static Expression operator +(Variable lhs, Variable rhs)
         => new(new Term[] { new(lhs), new(rhs) });
 
-    /// <summary>Subtracts two expression values together.</summary>
+    /// <summary>Subtracts the right expression value from the left expression value.</summary>
     /// <param name="lhs">The left side of the expression.</param>
     /// <param name="rhs">The right side of the expression</param>
     /// <returns>The subtracted expression.</returns>

@@ -40,12 +40,10 @@ public sealed class RegressionTests
         Variable y = new("y");
 
         // Set x = 10, then y = 2 * x (using double * Variable, which goes through double * Expression)
-        solver.WithTransaction(s =>
-        {
-            s.AddConstraint(Constraint.Equal(x, 10.0));
-            // 2.0 * x uses: double * Variable → double * Term → double * Expression
-            s.AddConstraint(Constraint.Equal(y, 2.0 * x));
-        });
+        solver.AddConstraint(Constraint.Equal(x, 10.0));
+        // 2.0 * x uses: double * Variable → double * Term → double * Expression
+        solver.AddConstraint(Constraint.Equal(y, 2.0 * x));
+        solver.Solve();
 
         Assert.AreEqual(10.0, x.Value, Epsilon);
         Assert.AreEqual(20.0, y.Value, Epsilon, "y should be 2*x = 20, not x/2 = 5");
@@ -198,30 +196,6 @@ public sealed class RegressionTests
     }
 
     // =========================================================================
-    // WithTransaction should re-optimize when AutoSolve is enabled
-    // =========================================================================
-
-    [Test]
-    public void WithTransaction_ShouldDualOptimizeWhenAutoSolveEnabled()
-    {
-        Solver solver = new();
-        Variable x = new("x");
-
-        solver.AutoSolve = true;
-        solver.AddConstraint(Constraint.GreaterEqual(x, 0.0));
-        solver.AddConstraint(Constraint.LessEqual(x, 100.0));
-        solver.AddEditVariable(x, Strength.Strong);
-
-        solver.WithTransaction(s =>
-        {
-            s.SuggestValue(x, 150.0);
-        });
-
-        Assert.AreEqual(100.0, x.Value, Epsilon,
-            "AutoSolve should re-optimize after a transaction and clamp to bounds");
-    }
-
-    // =========================================================================
     // Expression hash code should match Expression equality
     // =========================================================================
 
@@ -242,6 +216,158 @@ public sealed class RegressionTests
 
         Assert.IsTrue(dict.ContainsKey(expr2),
             "Hash code should be consistent with equality so dictionaries can find equal expressions");
+    }
+
+    // =========================================================================
+    // Correctness: TryAddEditVariable should not fail for value-equal constraints
+    // =========================================================================
+
+    [Test]
+    public void TryAddEditVariable_ShouldSucceedWhenValueEqualConstraintExists()
+    {
+        Solver solver = new();
+        Variable x = new("x");
+
+        Constraint existing = new(new Expression(new Term(x)), RelationalOperator.Equal, Strength.Weak);
+        solver.AddConstraint(existing);
+
+        bool added = solver.TryAddEditVariable(x, Strength.Weak);
+
+        Assert.IsTrue(added,
+            "TryAddEditVariable should succeed when only a value-equal constraint exists");
+        Assert.IsTrue(solver.HasEditVariable(x),
+            "Edit variable should be attached when the add succeeds");
+    }
+
+    // =========================================================================
+    // Correctness: Expression.Terms should not be mutable from the public API
+    // =========================================================================
+
+    [Test]
+    public void ExpressionTerms_ShouldBeImmutable()
+    {
+        Solver solver = new();
+        Variable x = new("x");
+
+        Constraint c = Constraint.Equal(new Expression(new Term(x)), 0.0);
+        solver.AddConstraint(c);
+
+        var terms = c.Expression.Terms;
+
+        Assert.That(terms, Is.Not.InstanceOf<Term[]>());
+        Assert.Throws<NotSupportedException>(() => ((IList<Term>)terms)[0] = new Term(x, 2.0));
+        Assert.IsTrue(solver.HasConstraint(c),
+            "Constraint lookup should remain valid when terms are immutable");
+    }
+
+    // =========================================================================
+    // Constraint identity should be handle-based, not value-based
+    // =========================================================================
+
+    [Test]
+    public void ConstraintIdentity_ValueEqualIsNotDuplicate()
+    {
+        Solver solver = new();
+        Variable x = new("x");
+
+        Constraint c1 = Constraint.Equal(x, 10.0);
+        Constraint c2 = Constraint.Equal(x, 10.0);
+
+        solver.AddConstraint(c1);
+
+        Assert.DoesNotThrow(() => solver.AddConstraint(c2),
+            "Value-equal constraints should be treated as distinct handles");
+        Assert.IsTrue(solver.HasConstraint(c1));
+        Assert.IsTrue(solver.HasConstraint(c2));
+    }
+
+    [Test]
+    public void ConstraintIdentity_ValueEqualRemoveShouldThrow()
+    {
+        Solver solver = new();
+        Variable x = new("x");
+
+        Constraint c1 = Constraint.Equal(x, 10.0);
+        Constraint c2 = Constraint.Equal(x, 10.0);
+
+        solver.AddConstraint(c1);
+
+        Assert.Throws<UnknownConstraintException>(() => solver.RemoveConstraint(c2),
+            "Removing a value-equal constraint should not affect the stored handle");
+        Assert.IsTrue(solver.HasConstraint(c1));
+    }
+
+    [Test]
+    public void ConstraintIdentity_ValueEqualHasConstraintShouldBeFalse()
+    {
+        Solver solver = new();
+        Variable x = new("x");
+
+        Constraint c1 = Constraint.Equal(x, 10.0);
+        Constraint c2 = Constraint.Equal(x, 10.0);
+
+        solver.AddConstraint(c1);
+
+        Assert.IsFalse(solver.HasConstraint(c2),
+            "Handle identity should not treat value-equal constraints as the same instance");
+    }
+
+    // =========================================================================
+    // Variable identity should be reference-based, not value-based
+    // =========================================================================
+
+    [Test]
+    public void VariableIdentity_SameNameShouldBeIndependent()
+    {
+        Solver solver = new();
+        Variable x1 = new("x");
+        Variable x2 = new("x");
+
+        solver.AddConstraint(Constraint.Equal(x1, 10.0));
+        solver.AddConstraint(Constraint.Equal(x2, 20.0));
+        solver.Solve();
+
+        Assert.AreEqual(10.0, x1.Value, Epsilon, "x1 should be 10");
+        Assert.AreEqual(20.0, x2.Value, Epsilon,
+            "x2 should be 20 — same-name variables must be independent instances");
+    }
+
+    // =========================================================================
+    // DualOptimize should skip near-zero infeasible rows (matches C++ behavior)
+    // =========================================================================
+
+    [Test]
+    public void DualOptimize_ShouldSkipNearZeroInfeasibleRows()
+    {
+        // The C++ reference skips rows whose constant is negative but near-zero,
+        // treating them as non-infeasible. Without this check, the solver may
+        // attempt unnecessary (or harmful) pivots on rows that are only
+        // infeasible due to floating-point rounding.
+        Solver solver = new();
+        Variable x = new("x");
+        Variable y = new("y");
+
+        // Build a system that, after solving, leaves rows with tiny negative
+        // constants due to floating-point arithmetic.
+        solver.AddConstraint(Constraint.GreaterEqual(x, 0.0));
+        solver.AddConstraint(Constraint.GreaterEqual(y, 0.0));
+        solver.AddConstraint(Constraint.Equal(x + y, 100.0));
+
+        solver.AddEditVariable(x, Strength.Strong);
+        solver.AddEditVariable(y, Strength.Strong);
+
+        // Suggest values that exactly satisfy the equality — the residual
+        // should be zero, but floating-point may leave a tiny negative.
+        solver.SuggestValue(x, 50.0);
+        solver.SuggestValue(y, 50.0);
+
+        // This should not throw InternalSolverException from a failed
+        // dual pivot on a near-zero row.
+        Assert.DoesNotThrow(() => solver.Solve(),
+            "DualOptimize should skip near-zero infeasible rows instead of pivoting");
+
+        Assert.AreEqual(50.0, x.Value, Epsilon);
+        Assert.AreEqual(50.0, y.Value, Epsilon);
     }
 
 }

@@ -13,17 +13,13 @@ public sealed class VariableConstantInequalityTests
         Solver solver = new();
         Variable x = new("x");
 
-        solver.WithTransaction(solver =>
-        {
-            solver.AddConstraint(Constraint.LessEqual(x, 100));
-        });
+        solver.AddConstraint(Constraint.LessEqual(x, 100));
+        solver.Solve();
 
         Assert.That(x.Value <= 100);
 
-        solver.WithTransaction(solver =>
-        {
-            solver.AddConstraint(Constraint.Equal(x, 90));
-        });
+        solver.AddConstraint(Constraint.Equal(x, 90));
+        solver.Solve();
 
         Assert.AreEqual(90, x.Value, Epsilon);
     }
@@ -34,19 +30,14 @@ public sealed class VariableConstantInequalityTests
         Solver solver = new();
         Variable x = new("x");
 
-        solver.WithTransaction(solver =>
-        {
-            solver.AddConstraint(Constraint.LessEqual(x, 100));
-        });
+        solver.AddConstraint(Constraint.LessEqual(x, 100));
+        solver.Solve();
 
         Assert.That(x.Value <= 100);
 
         Assert.Throws<UnsatisfiableConstraintException>(() =>
         {
-            solver.WithTransaction(solver =>
-            {
-                solver.AddConstraint(Constraint.Equal(x, 110));
-            });
+            solver.AddConstraint(Constraint.Equal(x, 110));
         });
     }
 
@@ -56,17 +47,13 @@ public sealed class VariableConstantInequalityTests
         Solver solver = new();
         Variable x = new("x");
 
-        solver.WithTransaction(solver =>
-        {
-            solver.AddConstraint(Constraint.GreaterEqual(x, 100));
-        });
+        solver.AddConstraint(Constraint.GreaterEqual(x, 100));
+        solver.Solve();
 
         Assert.That(x.Value >= 100);
 
-        solver.WithTransaction(solver =>
-        {
-            solver.AddConstraint(Constraint.Equal(x, 110));
-        });
+        solver.AddConstraint(Constraint.Equal(x, 110));
+        solver.Solve();
 
         Assert.AreEqual(110, x.Value, Epsilon);
     }
@@ -77,19 +64,14 @@ public sealed class VariableConstantInequalityTests
         Solver solver = new();
         Variable x = new("x");
 
-        solver.WithTransaction(solver =>
-        {
-            solver.AddConstraint(Constraint.GreaterEqual(x, 100));
-        });
+        solver.AddConstraint(Constraint.GreaterEqual(x, 100));
+        solver.Solve();
 
         Assert.That(x.Value >= 100);
 
         Assert.Throws<UnsatisfiableConstraintException>(() =>
         {
-            solver.WithTransaction(solver =>
-            {
-                solver.AddConstraint(Constraint.Equal(x, 90));
-            });
+            solver.AddConstraint(Constraint.Equal(x, 90));
         });
     }
 }
