@@ -7,5 +7,5 @@ public sealed class InternalSolverException : Exception
 {
     internal InternalSolverException(string? message) : base(message) { }
 
-    internal InternalSolverException() : base() { }
+    internal InternalSolverException() { }
 }

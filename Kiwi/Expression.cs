@@ -22,8 +22,8 @@ public readonly partial struct Expression : IEquatable<Expression>
         get
         {
             double value = Constant;
-            for (int i = 0; i < this._Terms.Length; i++)
-                value += this._Terms[i].Value;
+            foreach (var term in this._Terms)
+                value += term.Value;
             return value;
         }
     }
@@ -48,7 +48,7 @@ public readonly partial struct Expression : IEquatable<Expression>
     /// <summary>Create an expression with the given term.</summary>
     /// <param name="term">The term, or in other words, variable component.</param>
     /// <param name="constant">The constant added to the result.</param>
-    public Expression(Term term, double constant = 0) : this(new Term[] { term }, constant) { }
+    public Expression(Term term, double constant = 0) : this(new[] { term }, constant) { }
 
     /// <summary>Create a constant expression.</summary>
     /// <param name="constant">The result constant.</param>

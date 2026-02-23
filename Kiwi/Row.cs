@@ -42,10 +42,7 @@ internal sealed class Row
     /// is zero, the symbol will be removed from the row.
     /// </remarks>
     internal void Insert(Symbol symbol, double coefficient = 1)
-    {
-        this.Cells.TryGetValue(symbol, out double existingCoefficient);
-        SetCell(symbol, existingCoefficient + coefficient);
-    }
+        => SetCell(symbol, this.Cells.GetValueOrDefault(symbol) + coefficient);
 
     /// <summary>Insert a row into this row with a given coefficient.</summary>
     /// <remarks>
@@ -56,11 +53,8 @@ internal sealed class Row
     internal void Insert(Row other, double coefficient = 1)
     {
         this._Constant += other._Constant * coefficient;
-        foreach (var (symbol, symbolCoefficient) in other.Cells)
-        {
-            this.Cells.TryGetValue(symbol, out double existingCoefficient);
-            SetCell(symbol, existingCoefficient + symbolCoefficient * coefficient);
-        }
+        foreach ((var symbol, double symbolCoefficient) in other.Cells)
+            SetCell(symbol, this.Cells.GetValueOrDefault(symbol) + symbolCoefficient * coefficient);
     }
 
     /// <summary>Remove the given symbol from the row.</summary>
@@ -89,9 +83,8 @@ internal sealed class Row
     /// </remarks>
     internal void SolveForSymbol(Symbol symbol)
     {
-        if (!this.Cells.TryGetValue(symbol, out double symbolCoefficient))
+        if (!this.Cells.Remove(symbol, out double symbolCoefficient))
             throw new InternalSolverException();
-        this.Cells.Remove(symbol);
 
         double coefficient = -1 / symbolCoefficient;
         this._Constant *= coefficient;
@@ -99,7 +92,7 @@ internal sealed class Row
         for (int i = 0; i < this.Cells.Count; i++)
         {
             var cellSymbol = this.Cells.Keys[i];
-            this.Cells[cellSymbol] = this.Cells[cellSymbol] * coefficient;
+            this.Cells[cellSymbol] *= coefficient;
         }
     }
 
@@ -121,7 +114,7 @@ internal sealed class Row
     /// <summary>Get the coefficient for the given symbol.</summary>
     /// <remarks>If the symbol does not exist in the row, zero will be returned.</remarks>
     internal double GetCoefficientForSymbol(Symbol symbol)
-        => this.Cells.TryGetValue(symbol, out double coefficient) ? coefficient : 0;
+        => this.Cells.GetValueOrDefault(symbol);
 
     /// <summary>Substitute a symbol with the data from another row.</summary>
     /// <remarks>
@@ -132,9 +125,8 @@ internal sealed class Row
     /// </remarks>
     internal void Substitute(Symbol symbol, Row row)
     {
-        if (!this.Cells.TryGetValue(symbol, out double coefficient))
+        if (!this.Cells.Remove(symbol, out double coefficient))
             return;
-        this.Cells.Remove(symbol);
         Insert(row, coefficient);
     }
 
@@ -146,7 +138,7 @@ internal sealed class Row
     /// </remarks>
     internal Symbol? GetEnteringSymbol()
     {
-        foreach (var (symbol, value) in this.Cells)
+        foreach ((var symbol, double value) in this.Cells)
             if (symbol.Type != SymbolType.Dummy && value < 0)
                 return symbol;
         return null;

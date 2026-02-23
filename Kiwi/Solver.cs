@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
 
+#if NET6_0_OR_GREATER
+using System.Runtime.InteropServices;
+#endif
+
 namespace Nanoray.Kiwi;
 
 /// <summary>Describes a linear equation/inequality constraint solver system.</summary>
@@ -45,7 +49,7 @@ public sealed class Solver
     private readonly Dictionary<Constraint, Tag> Constraints = new();
     private readonly SortedList<Symbol, Row> Rows = new();
     private readonly Dictionary<Variable, VariableInfo> Variables = new();
-    private readonly List<Symbol> InfeasibleRows = new();
+    private readonly List<Symbol> InfeasibleRows = [];
     private readonly Row Objective = new();
     private Row? Artificial;
 
@@ -74,7 +78,7 @@ public sealed class Solver
         {
             if (info.ReferenceCount > 0)
                 continue;
-            (toRemove ??= new()).Add(info.Variable);
+            (toRemove ??= []).Add(info.Variable);
         }
 
         if (toRemove is null)
@@ -97,9 +101,7 @@ public sealed class Solver
     /// <param name="constraint">The constraint to add</param>
     /// <returns><c>true</c> if the operation succeeded, <c>false</c> otherwise (if the constraint is already added to the solver system).</returns>
     public bool TryAddConstraint(Constraint constraint)
-    {
-        return PrivateTryAddConstraint(constraint) is not null;
-    }
+        => PrivateTryAddConstraint(constraint) is not null;
 
     private Tag? PrivateTryAddConstraint(Constraint constraint)
     {
@@ -117,12 +119,9 @@ public sealed class Solver
 
         this.Constraints[constraint] = tag;
 
-        for (int i = 0; i < referencedVariables.Count; i++)
-        {
-            var variable = referencedVariables[i];
+        foreach (var variable in referencedVariables)
             if (this.Variables.TryGetValue(variable, out var info))
                 info.ReferenceCount++;
-        }
 
         Optimize(this.Objective);
 
@@ -313,7 +312,7 @@ public sealed class Solver
     {
         if (tag.Marker.Type == SymbolType.Error)
             RemoveMarkerEffects(tag.Marker, constraint.Strength);
-        if (tag.Other is { } other && other.Type == SymbolType.Error)
+        if (tag.Other is { Type: SymbolType.Error } other)
             RemoveMarkerEffects(other, constraint.Strength);
     }
 
@@ -392,7 +391,7 @@ public sealed class Solver
         row = new(constraint.Expression.Constant);
         Symbol marker;
         Symbol? other = null;
-        referencedVariables = new();
+        referencedVariables = [];
 
         foreach (var term in constraint.Expression._Terms)
         {
@@ -476,12 +475,10 @@ public sealed class Solver
         foreach (var symbol in row.Cells.Keys)
             if (symbol.Type == SymbolType.External)
                 return symbol;
-        if (tag.Marker.Type is SymbolType.Slack or SymbolType.Error)
-            if (row.GetCoefficientForSymbol(tag.Marker) < 0)
-                return tag.Marker;
-        if (tag.Other is { } other && other.Type is SymbolType.Slack or SymbolType.Error)
-            if (row.GetCoefficientForSymbol(other) < 0)
-                return other;
+        if (tag.Marker.Type is SymbolType.Slack or SymbolType.Error && row.GetCoefficientForSymbol(tag.Marker) < 0)
+            return tag.Marker;
+        if (tag.Other is { Type: SymbolType.Slack or SymbolType.Error } other && row.GetCoefficientForSymbol(other) < 0)
+            return other;
         return null;
     }
 
@@ -504,9 +501,8 @@ public sealed class Solver
         // If the artificial variable is basic, pivot the row so that
         // it becomes basic. If the row is constant, exit early.
 
-        if (this.Rows.TryGetValue(artificial, out var rowPointer))
+        if (this.Rows.Remove(artificial, out var rowPointer))
         {
-            this.Rows.Remove(artificial);
             if (rowPointer.Cells.Count == 0)
                 return success;
 
@@ -642,15 +638,22 @@ public sealed class Solver
         => new(++this.NextSymbolID, type);
 
     private VariableInfo? GetInfo(Variable variable)
-        => this.Variables.GetValueOrNull(variable);
+        => this.Variables.GetValueOrDefault(variable);
 
     private VariableInfo ObtainInfo(Variable variable)
     {
+        #if NET6_0_OR_GREATER
+        ref var info = ref CollectionsMarshal.GetValueRefOrAddDefault(this.Variables, variable, out bool infoExists);
+        if (!infoExists)
+            info = new(variable, CreateSymbol(SymbolType.External));
+        return info!;
+        #else
         if (!this.Variables.TryGetValue(variable, out var info))
         {
             info = new(variable, CreateSymbol(SymbolType.External));
             this.Variables[variable] = info;
         }
         return info;
+        #endif
     }
 }
