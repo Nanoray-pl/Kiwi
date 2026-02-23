@@ -14,17 +14,17 @@ internal readonly struct Symbol : IEquatable<Symbol>, IComparable<Symbol>
     }
 
     public bool Equals(Symbol other)
-        => ID == other.ID; // not checking for Type, IDs are auto-generated across all types together
+        => this.ID == other.ID; // not checking for Type, IDs are auto-generated across all types together
 
     public override bool Equals(object? obj)
         => obj is Symbol symbol && Equals(symbol);
 
     public override int GetHashCode()
-        => ID;
+        => this.ID;
 
     public int CompareTo(Symbol other)
-        => ID.CompareTo(other.ID);
+        => this.ID.CompareTo(other.ID);
 
     public override string ToString()
-        => $"{{#{ID} {Type}}}";
+        => $"{{#{this.ID} {this.Type}}}";
 }
