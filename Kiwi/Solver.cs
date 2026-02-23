@@ -202,10 +202,9 @@ public sealed class Solver
         Term term = new(variable);
         Constraint constraint = new(new Expression(term), RelationalOperator.Equal, strength);
 
-        var tag = PrivateTryAddConstraint(constraint);
-        if (tag is null)
+        if (PrivateTryAddConstraint(constraint) is not { } tag)
             return false;
-        variableInfo.Edit = new(tag.Value, constraint, 0);
+        variableInfo.Edit = new(tag, constraint, 0);
         return true;
     }
 
@@ -249,26 +248,25 @@ public sealed class Solver
     /// <seealso cref="AddEditVariable(Variable, double)"/>
     public void SuggestValue(Variable variable, double value)
     {
-        var variableInfo = GetInfo(variable);
-        if (variableInfo?.Edit is null)
+        if (GetInfo(variable)?.Edit is not { } editInfo)
             throw new UnknownEditVariableException();
 
-        double delta = value - variableInfo.Edit.Constant;
-        variableInfo.Edit.Constant = value;
+        double delta = value - editInfo.Constant;
+        editInfo.Constant = value;
 
         bool hasBasicErrorRow = false;
 
         {
             // Check first if the positive error variable is basic.
-            if (this.Rows.TryGetValue(variableInfo.Edit.Tag.Marker, out var row))
+            if (this.Rows.TryGetValue(editInfo.Tag.Marker, out var row))
             {
                 if (row.Add(-delta) < 0)
-                    this.InfeasibleRows.Add(variableInfo.Edit.Tag.Marker);
+                    this.InfeasibleRows.Add(editInfo.Tag.Marker);
                 hasBasicErrorRow = true;
             }
 
             // Check next if the negative error variable is basic.
-            if (!hasBasicErrorRow && variableInfo.Edit.Tag.Other is { } other && this.Rows.TryGetValue(other, out row))
+            if (!hasBasicErrorRow && editInfo.Tag.Other is { } other && this.Rows.TryGetValue(other, out row))
             {
                 if (row.Add(delta) < 0)
                     this.InfeasibleRows.Add(other);
@@ -281,7 +279,7 @@ public sealed class Solver
             // Otherwise update each row where the error variables exist.
             foreach (var (symbol, row) in this.Rows)
             {
-                double coefficient = row.GetCoefficientForSymbol(variableInfo.Edit.Tag.Marker);
+                double coefficient = row.GetCoefficientForSymbol(editInfo.Tag.Marker);
                 if (coefficient != 0 && row.Add(delta * coefficient) < 0 && symbol.Type != SymbolType.External)
                     this.InfeasibleRows.Add(symbol);
             }
